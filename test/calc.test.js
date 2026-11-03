@@ -2,7 +2,6 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { lotRange, computeApplication } = require('../src/calc');
 const { parseDate, parsePrice, parseLot } = require('../src/nse');
-const { buildReport } = require('../src/report');
 
 const ipo = { id: 'i1', name: 'Test', priceLow: 78, priceHigh: 82, lotSize: 182 }; // 1 lot = 14,924
 
@@ -36,19 +35,3 @@ test('NSE field parsers', () => {
   assert.strictEqual(parseLot('182 Equity Shares and in multiples thereof'), 182);
 });
 
-test('report totals', () => {
-  const state = {
-    accounts: [{ id: 'a1', name: 'A', order: 1 }, { id: 'a2', name: 'B', order: 2 }, { id: 'a3', name: 'C', order: 3 }],
-    ipos: [{ ...ipo, openDate: '2026-10-29', closeDate: '2026-11-02' }],
-    applications: [
-      { ipoId: 'i1', accountId: 'a1', category: 'SHNI' },
-      { ipoId: 'i1', accountId: 'a2', category: 'BHNI' },
-      { ipoId: 'i1', accountId: 'a3', category: null },
-    ],
-  };
-  const r = buildReport(state, {});
-  assert.strictEqual(r.blocks.length, 1);
-  assert.deepStrictEqual(r.grand, { accounts: 2, shni: 1, bhni: 1, lots: 82, shares: 82 * 182, amount: 82 * 182 * 82 });
-  assert.strictEqual(buildReport(state, { category: 'BHNI' }).grand.lots, 68);
-  assert.strictEqual(buildReport(state, { from: '2026-11-03' }).blocks.length, 0);
-});

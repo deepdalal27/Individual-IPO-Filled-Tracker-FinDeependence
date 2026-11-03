@@ -1,10 +1,10 @@
 {
   "name": "individual-ipo-filled-tracker-findeependence",
   "version": "1.0.0",
-  "description": "Track sHNI/bHNI IPO applications across individual accounts, auto-sync IPOs from NSE, export Excel/PDF reports",
-  "main": "server.js",
+  "description": "FinDeependence HNI IPO Ledger: sHNI/bHNI IPO applications across individual accounts, hosted on GitHub Pages with NSE IPO auto-sync",
   "scripts": {
-    "start": "node server.js",
+    "start": "node scripts/serve.js",
+    "sync": "node scripts/sync-ipos.js",
     "test": "node --test test/*.test.js"
   },
   "repository": {
@@ -17,11 +17,7 @@
     "url": "https://github.com/deepdalal27/Individual-IPO-Filled-Tracker-FinDeependence/issues"
   },
   "homepage": "https://github.com/deepdalal27/Individual-IPO-Filled-Tracker-FinDeependence#readme",
-  "dependencies": {
-    "exceljs": "^4.4.0",
-    "express": "^5.3.0",
-    "pdfkit": "^0.20.2"
-  },
+  "dependencies": {},
   "engines": {
     "node": ">=20"
   },
