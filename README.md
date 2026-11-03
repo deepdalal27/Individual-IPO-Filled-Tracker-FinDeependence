@@ -10,7 +10,7 @@ download as **Excel** and **PDF**.
   mainboard IPOs from NSE's public IPO pages, including open/close dates,
   price band and lot size. New IPOs appear on their own, and price band and lot size
   fill in once NSE publishes them.
-- **One-click entry for the operator** – open the *Apply* tab, pick the IPO, and
+- **One-click entry** – open the *Apply* tab, pick the IPO, and
   click **sHNI** / **bHNI** / **None** next to each account. Lots are set
   automatically to the category minimum at the upper price band:
   - sHNI min lots = smallest number of lots above ₹2,00,000 (max ≤ ₹10,00,000)
@@ -26,37 +26,48 @@ download as **Excel** and **PDF**.
   issue). Edited IPOs are not overwritten by the auto-sync.
 - **Accounts** – rename the 24 accounts, add PAN and notes, deactivate or add more.
 
-## Run it
+## Run it on your own computer
+
+1. Install **Node.js** (LTS version) from https://nodejs.org (one-time).
+2. Download this repository (green **Code** button → **Download ZIP**) and unzip it.
+3. Start the app by double-clicking the start file for your computer:
+   - **Windows:** `start-windows.bat`
+   - **Mac:** `start-mac.command` (the first time, right-click → **Open**)
+
+   The first start installs what the app needs (about a minute). After that it opens
+   http://localhost:3000 in your browser.
+4. Keep the black window open while you use the app. Close it to stop the app.
+
+Your data is saved in the `data` folder next to the app, so it's still there the next
+time you start. Copy that folder somewhere safe now and then as a backup.
+
+Or start it from a terminal:
 
 ```bash
 npm install
 ```
 
 ```bash
-APP_PASSWORD=choose-a-password npm start
+npm start
 ```
-
-Open http://localhost:3000. When `APP_PASSWORD` is set, the browser asks for a
-login: any username works, and the password is `APP_PASSWORD`. Share the URL and password with your colleague.
 
 ### Settings (environment variables)
 
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORT` | `3000` | HTTP port |
-| `APP_PASSWORD` | _(none)_ | Password for the app (strongly recommended when hosted) |
+| `APP_PASSWORD` | _(none)_ | Optional password for the app (only needed if you put it online) |
 | `DATA_DIR` | `./data` | Where `db.json` is stored. Back this folder up. |
 | `SYNC_INTERVAL_HOURS` | `3` | How often to pull IPOs from NSE |
 | `INCLUDE_SME` | `0` | Set `1` to also import SME IPOs |
 | `DEFAULT_ACCOUNTS` | `24` | Number of accounts created on first start |
 | `DISABLE_SYNC` | `0` | Set `1` to turn off auto-sync |
 
-### Hosting
+### Notes
 
-Any Node 20+ host works (a VPS, Railway, Render, Fly.io and so on). The data lives in one
-JSON file, so give the app a **persistent disk** and point `DATA_DIR` at it.
-Without one, the data is lost on every redeploy. NSE sometimes blocks
-data-centre IPs. If auto-sync shows "failed" in the IPOs tab, add IPOs manually there.
+- No password is set by default; the app runs only on your own computer.
+- If the IPOs tab shows the last sync as "failed", NSE couldn't be reached. Add that
+  IPO by hand with **+ Add IPO manually**.
 
 ## Tests
 
