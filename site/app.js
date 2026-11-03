@@ -113,13 +113,14 @@
       </div>
       ${la ? '' : '<p class="notice">Price band or lot size not announced yet. You can still mark categories; lots and amounts fill in once the IPO details are added.</p>'}
       <div class="tbl"><table>
-        <thead><tr><th>#</th><th>Account</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Amount blocked</th><th>Remarks</th></tr></thead>
+        <thead><tr><th>#</th><th>Account</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Amount blocked</th><th>Application no.</th><th>Remarks</th></tr></thead>
         <tbody>${rows.map((a, i) => rowHtml(ipo, a, i)).join('')}</tbody>
         <tfoot>${totalsHtml(ipo, rows)}</tfoot>
       </table></div>`;
     $$('.seg button', p).forEach((b) => b.addEventListener('click', () => saveApp(ipo, b.closest('tr').dataset.acc, { category: b.dataset.cat || null })));
     $$('input.lots', p).forEach((inp) => inp.addEventListener('change', () => saveApp(ipo, inp.closest('tr').dataset.acc, { lots: inp.value })));
     $$('input.rem', p).forEach((inp) => inp.addEventListener('change', () => saveApp(ipo, inp.closest('tr').dataset.acc, { remarks: inp.value })));
+    $$('input.appno', p).forEach((inp) => inp.addEventListener('change', () => saveApp(ipo, inp.closest('tr').dataset.acc, { appNo: inp.value })));
     const ca = $('#clearAll');
     ca.addEventListener('click', async () => {
       if (!ca.dataset.armed) { ca.dataset.armed = '1'; ca.textContent = 'Click again to clear'; setTimeout(() => { if (ca.isConnected) { delete ca.dataset.armed; ca.textContent = 'Clear all categories'; } }, 4000); return; }
@@ -142,19 +143,32 @@
       <td class="num">${cat ? `<input class="lots" type="number" step="1" min="${r?.min ?? 1}" ${r?.max ? `max="${r.max}"` : ''} value="${c?.lots ?? ''}" ${r ? '' : 'disabled'} aria-label="Lots" title="Defaults to the category minimum">` : '–'}</td>
       <td class="num">${cat ? inr(c?.shares) : '–'}</td>
       <td class="num">${cat ? rs(c?.amount) : '–'}</td>
+      <td>${cat ? `<input class="appno${app?.appNo && dupKeys().has(normApp(app.appNo)) ? ' dup' : ''}" value="${esc(app?.appNo || '')}" maxlength="40" placeholder="Application no." aria-label="Application number" spellcheck="false" autocomplete="off">` : ''}</td>
       <td>${cat ? `<input class="rem" value="${esc(app?.remarks || '')}" placeholder="Optional" aria-label="Remarks">` : ''}</td>
     </tr>`;
   }
   function totalsHtml(ipo, rows) {
-    const t = { s: 0, b: 0, lots: 0, shares: 0, amt: 0 };
-    for (const a of rows) { const app = S.apps.get(appKey(ipo.id, a.id)); if (!app?.category) continue; app.category === 'SHNI' ? t.s++ : t.b++; const c = calc(ipo, app); t.lots += c.lots || 0; t.shares += c.shares || 0; t.amt += c.amount || 0; }
-    return `<tr class="tot"><td></td><td>Total · ${t.s + t.b} accounts</td><td>${t.s} sHNI · ${t.b} bHNI</td><td class="num">${inr(t.lots)}</td><td class="num">${inr(t.shares)}</td><td class="num">${rs(t.amt)}</td><td></td></tr>`;
+    const t = { s: 0, b: 0, lots: 0, shares: 0, amt: 0, nos: 0 };
+    for (const a of rows) { const app = S.apps.get(appKey(ipo.id, a.id)); if (!app?.category) continue; app.category === 'SHNI' ? t.s++ : t.b++; if (app.appNo) t.nos++; const c = calc(ipo, app); t.lots += c.lots || 0; t.shares += c.shares || 0; t.amt += c.amount || 0; }
+    return `<tr class="tot"><td></td><td>Total · ${t.s + t.b} accounts</td><td>${t.s} sHNI · ${t.b} bHNI</td><td class="num">${inr(t.lots)}</td><td class="num">${inr(t.shares)}</td><td class="num">${rs(t.amt)}</td><td class="${t.nos < t.s + t.b ? 'warn' : ''}">${t.nos} of ${t.s + t.b} entered</td><td></td></tr>`;
+  }
+  // Application numbers must be unique across every IPO and account (ignoring case and spaces).
+  const normApp = (v) => String(v || '').replace(/\s+/g, '').toUpperCase();
+  function dupKeys() {
+    const seen = new Set(), dup = new Set();
+    for (const a of S.apps.values()) { if (!a.category || !a.appNo) continue; const k = normApp(a.appNo); (seen.has(k) ? dup : seen).add(k); }
+    return dup;
+  }
+  function findAppNo(no, exceptKey) {
+    const k = normApp(no);
+    for (const [key, a] of S.apps) if (key !== exceptKey && a.category && a.appNo && normApp(a.appNo) === k) return a;
+    return null;
   }
   async function saveApp(ipo, accId, patch) {
     if (!db) return toast('Saving is unavailable right now', true);
     const k = appKey(ipo.id, accId);
     const cur = S.apps.get(k) || { ipoId: ipo.id, accountId: accId, category: null, lots: null, remarks: '' };
-    const next = { ipoId: ipo.id, accountId: accId, category: cur.category || null, lots: cur.lots ?? null, remarks: cur.remarks || '' };
+    const next = { ipoId: ipo.id, accountId: accId, category: cur.category || null, lots: cur.lots ?? null, remarks: cur.remarks || '', appNo: cur.appNo || '' };
     if ('category' in patch) { if (patch.category !== next.category) next.lots = null; next.category = patch.category; }
     if ('lots' in patch) {
       const n = patch.lots === '' ? null : Number(patch.lots);
@@ -165,6 +179,17 @@
       next.lots = n;
     }
     if ('remarks' in patch) next.remarks = String(patch.remarks).slice(0, 200);
+    if ('appNo' in patch) {
+      const v = String(patch.appNo).trim().replace(/\s+/g, ' ').slice(0, 40);
+      const clash = v && findAppNo(v, k);
+      if (clash) {
+        const who = S.accounts.find((a) => a.id === clash.accountId)?.name || 'another account';
+        const where = S.ipos.find((i) => i.id === clash.ipoId)?.name || 'another IPO';
+        toast(`Application no. ${v} is already used for ${who} in ${where}. Each number can be used only once.`, true);
+        renderPanel(); return;
+      }
+      next.appNo = v;
+    }
     next.updatedAt = new Date().toISOString();
     try {
       if (!next.category) await db.collection('apps').doc(k).delete();
@@ -217,7 +242,7 @@
       const app = applied(ipo.id, acc.id);
       const cat = app ? app.category : 'NONE';
       const c = app ? calc(ipo, app) : { lots: 0, shares: 0, amount: 0 };
-      cells.push({ ipo, acc, cat, lots: c.lots, shares: c.shares, amount: c.amount, remarks: app?.remarks || '' });
+      cells.push({ ipo, acc, cat, lots: c.lots, shares: c.shares, amount: c.amount, remarks: app?.remarks || '', appNo: app?.appNo || '' });
     }
     const shown = f.cat ? cells.filter((c) => c.cat === f.cat) : cells;
     const sum = (list) => {
@@ -313,8 +338,8 @@
         <tfoot><tr class="tot"><td>Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="num">${g.applied} / ${g.cells}</td><td class="num">${g.shni}</td><td class="num">${g.bhni}</td><td class="num">${g.none}</td><td class="num">${inr(g.lots)}</td><td class="num">${inr(g.shares)}</td><td class="num">${rs(g.amount)}</td></tr></tfoot></table></div>
         <h3 class="sec">Accounts in each IPO</h3>
         ${d.byIpo.map((b) => `<details class="blk" ${d.f.ipo ? 'open' : ''}><summary><span>${esc(b.ipo.name)}</span><span class="muted">${b.t.shni} sHNI · ${b.t.bhni} bHNI · ${b.t.none} None · <span class="num">${rs(b.t.amount)}</span></span></summary>
-          <div class="tbl"><table><thead><tr><th>Account</th><th>PAN</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Amount</th><th>Remarks</th></tr></thead>
-          <tbody>${b.list.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${accLink(c.acc)}</td><td class="mono">${esc(c.acc.pan || '')}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div></details>`).join('')}`;
+          <div class="tbl"><table><thead><tr><th>Account</th><th>PAN</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Amount</th><th>Application no.</th><th>Remarks</th></tr></thead>
+          <tbody>${b.list.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${accLink(c.acc)}</td><td class="mono">${esc(c.acc.pan || '')}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td class="mono">${esc(c.appNo) || (c.cat === 'NONE' ? '' : '<span class="muted">–</span>')}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div></details>`).join('')}`;
     } else if (rView === 'acc') {
       body = `<h3 class="sec">Account-wise · which IPOs each account applied in</h3><div class="tbl"><table>
         <thead><tr>${sh('#', 'list', 'acc', 'num', 'asc')}${sh('Account', 'name', 'acc', '', 'asc')}<th>PAN</th>${sh('IPOs applied', 'applied', 'acc', 'num')}<th class="num">sHNI</th><th class="num">bHNI</th><th class="num">None</th><th class="num">Hit rate</th>${sh('Amount blocked', 'amount', 'acc', 'num')}<th>Last applied in</th></tr></thead>
@@ -322,8 +347,8 @@
         <tfoot><tr class="tot"><td></td><td>Total</td><td></td><td class="num">${g.applied} / ${g.cells}</td><td class="num">${g.shni}</td><td class="num">${g.bhni}</td><td class="num">${g.none}</td><td class="num">${pct(g.applied, g.cells)}</td><td class="num">${rs(g.amount)}</td><td></td></tr></tfoot></table></div>
         <h3 class="sec">IPO history of each account</h3>
         ${d.byAcc.map((b) => `<details class="blk" ${d.f.acc ? 'open' : ''}><summary><span>${esc(b.acc.name)}</span><span class="muted">${b.t.applied} IPOs · ${b.t.shni} sHNI · ${b.t.bhni} bHNI · <span class="num">${rs(b.t.amount)}</span></span></summary>
-          <div class="tbl"><table><thead><tr><th>IPO</th><th>Open</th><th>Close</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Upper price</th><th class="num">Amount</th><th>Remarks</th></tr></thead>
-          <tbody>${b.list.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${ipoLink(c.ipo)}</td><td>${fd(c.ipo.openDate)}</td><td>${fd(c.ipo.closeDate)}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${rs(c.ipo.priceHigh)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div></details>`).join('')}`;
+          <div class="tbl"><table><thead><tr><th>IPO</th><th>Open</th><th>Close</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Upper price</th><th class="num">Amount</th><th>Application no.</th><th>Remarks</th></tr></thead>
+          <tbody>${b.list.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${ipoLink(c.ipo)}</td><td>${fd(c.ipo.openDate)}</td><td>${fd(c.ipo.closeDate)}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${rs(c.ipo.priceHigh)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td class="mono">${esc(c.appNo) || (c.cat === 'NONE' ? '' : '<span class="muted">–</span>')}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div></details>`).join('')}`;
     } else if (rView === 'matrix') {
       const cellOf = (ipo, acc) => d.shown.find((c) => c.ipo === ipo && c.acc === acc);
       const mark = (c) => (!c ? '' : c.cat === 'SHNI' ? '<span class="mx s">S</span>' : c.cat === 'BHNI' ? '<span class="mx b">B</span>' : '<span class="mx n">–</span>');
@@ -333,8 +358,8 @@
         <tfoot>${[['sHNI', 'shni'], ['bHNI', 'bhni'], ['None', 'none']].map(([l, k]) => `<tr class="tot"><td class="stick">${l}</td>${d.byIpo.map((b) => `<td class="num">${b.t[k]}</td>`).join('')}<td class="num">${k === 'shni' ? g.shni : ''}</td><td class="num">${k === 'bhni' ? g.bhni : ''}</td><td class="num">${k === 'none' ? g.none : ''}</td></tr>`).join('')}</tfoot></table></div>`;
     } else {
       body = `<h3 class="sec">All rows · every IPO × account (${d.shown.length})</h3><div class="tbl"><table>
-        <thead><tr><th>IPO</th><th>Open</th><th>Close</th><th>Account</th><th>PAN</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Upper price</th><th class="num">Amount</th><th>Remarks</th></tr></thead>
-        <tbody>${d.shown.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${ipoLink(c.ipo)}</td><td>${fd(c.ipo.openDate)}</td><td>${fd(c.ipo.closeDate)}</td><td>${accLink(c.acc)}</td><td class="mono">${esc(c.acc.pan || '')}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${rs(c.ipo.priceHigh)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div>`;
+        <thead><tr><th>IPO</th><th>Open</th><th>Close</th><th>Account</th><th>PAN</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Upper price</th><th class="num">Amount</th><th>Application no.</th><th>Remarks</th></tr></thead>
+        <tbody>${d.shown.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${ipoLink(c.ipo)}</td><td>${fd(c.ipo.openDate)}</td><td>${fd(c.ipo.closeDate)}</td><td>${accLink(c.acc)}</td><td class="mono">${esc(c.acc.pan || '')}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${rs(c.ipo.priceHigh)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td class="mono">${esc(c.appNo) || (c.cat === 'NONE' ? '' : '<span class="muted">–</span>')}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div>`;
     }
     $('#reportOut').innerHTML = tiles + body;
   }
@@ -407,6 +432,7 @@
         if (c.date) v = toDate(v);
         cell.value = v ?? (c.num ? null : '');
         if (c.date) cell.numFmt = DATE_FMT;
+        if (c.text) { cell.numFmt = '@'; cell.value = v == null ? '' : String(v); }
         if (c.fmt) cell.numFmt = c.fmt;
         cell.alignment = { horizontal: c.num ? 'right' : c.center ? 'center' : 'left', vertical: 'middle' };
         cell.border = { bottom: thin };
@@ -456,6 +482,14 @@
       { type: 'cellIs', operator: 'equal', formulae: ['"Closed"'], priority: 32, style: { font: { color: { argb: XL.muted } } } },
     ] });
   }
+  // Application numbers: stored as text, duplicates highlighted red and blocked by data validation.
+  function cfDupAppNo(ws, col, first, last) {
+    const rng = `$${col}$${first}:$${col}$${last}`;
+    ws.addConditionalFormatting({ ref: `${col}${first}:${col}${last}`, rules: [{ type: 'expression', formulae: [`AND(${col}${first}<>"",COUNTIF(${rng},${col}${first})>1)`], priority: 0, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF8D7D5' } }, font: { bold: true, color: { argb: 'FFB3261E' } } } }] });
+    for (let r = first; r <= last; r++) {
+      ws.getCell(`${col}${r}`).dataValidation = { type: 'custom', allowBlank: true, formulae: [`COUNTIF(${rng},${col}${r})<=1`], showErrorMessage: true, errorStyle: 'stop', errorTitle: 'Duplicate application number', error: 'This application number is already used in another row. Each number can be used only once.' };
+    }
+  }
   const freeze = (ws, H, xSplit = 1) => { ws.views = [{ state: 'frozen', xSplit, ySplit: H, showGridLines: false, zoomScale: 100 }]; };
   const autoF = (ws, H, last, n) => { if (last > H) ws.autoFilter = { from: { row: H, column: 1 }, to: { row: last, column: n } }; };
 
@@ -470,7 +504,7 @@
       const { ws } = xlSheet(wb, 'Dashboard', 'IPO Application Report · sHNI / bHNI', d, cols, { tab: XL.green });
       ws.getRow(5).values = []; ws.getRow(5).height = 8;
       for (let c = 1; c <= 6; c++) { ws.getRow(5).getCell(c).fill = fill(XL.white); ws.getRow(5).getCell(c).border = {}; }
-      const kpi = [['IPOs in report', d.ipos.length, null], ['Accounts', d.accounts.length, null], ['Applications (sHNI + bHNI)', g.applied, null], ['Hit rate (applied ÷ slots)', g.cells ? g.applied / g.cells : 0, '0%'], ['Total lots', g.lots, INR_FMT], ['Total shares', g.shares, INR_FMT], ['Amount blocked (₹)', g.amount, INR_FMT]];
+      const kpi = [['IPOs in report', d.ipos.length, null], ['Accounts', d.accounts.length, null], ['Applications (sHNI + bHNI)', g.applied, null], ['Hit rate (applied ÷ slots)', g.cells ? g.applied / g.cells : 0, '0%'], ['Application numbers entered', `${d.shown.filter((c) => c.cat !== 'NONE' && c.appNo).length} of ${g.applied}`, null], ['Total lots', g.lots, INR_FMT], ['Total shares', g.shares, INR_FMT], ['Amount blocked (₹)', g.amount, INR_FMT]];
       let r = 6;
       ws.getCell(r, 1).value = 'KEY NUMBERS'; ws.getCell(r, 1).font = { bold: true, size: 9, color: { argb: XL.teal } }; r++;
       for (const [label, v, fmt] of kpi) {
@@ -590,15 +624,18 @@
       const cols = [
         { h: 'IPO', key: 'ipo', w: 36, bold: true }, { h: 'Symbol', key: 'symbol', w: 12 }, { h: 'Type', key: 'type', w: 11, center: true }, { h: 'Status', key: 'status', w: 11, center: true },
         { h: 'Open', key: 'open', w: 13, date: true, center: true }, { h: 'Close', key: 'close', w: 13, date: true, center: true },
-        { h: 'Account', key: 'acc', w: 28 }, { h: 'PAN', key: 'pan', w: 13 }, { h: 'Category', key: 'cat', w: 11, center: true },
+        { h: 'Account', key: 'acc', w: 28 }, { h: 'PAN', key: 'pan', w: 13 }, { h: 'Category', key: 'cat', w: 11, center: true }, { h: 'Application no.', key: 'appNo', w: 20, text: true },
         { h: 'Lots', key: 'lots', w: 8, num: true, sum: true, fmt: INR_FMT }, { h: 'Shares', key: 'shares', w: 10, num: true, sum: true, fmt: INR_FMT }, { h: 'Upper price ₹', key: 'price', w: 11, num: true, fmt: INR_FMT },
         { h: 'Amount blocked ₹', key: 'amount', w: 17, num: true, sum: true, fmt: INR_FMT }, { h: 'Remarks', key: 'remarks', w: 26 },
       ];
       const { ws, H, n } = xlSheet(wb, 'All rows', 'All rows · every IPO × account', d, cols, { note: 'Filter Category to sHNI / bHNI / None; sort IPO A–Z or by open / close date. Totals follow the filter.' });
-      const rows = d.shown.map((c) => ({ ipo: c.ipo.name, symbol: c.ipo.symbol || '', type: c.ipo.type || 'Mainboard', status: status(c.ipo), open: c.ipo.openDate, close: c.ipo.closeDate, acc: c.acc.name, pan: c.acc.pan || '', cat: CATN[c.cat], lots: c.lots || 0, shares: c.shares || 0, price: c.ipo.priceHigh ?? null, amount: c.amount || 0, remarks: c.remarks }));
+      const rows = d.shown.map((c) => ({ ipo: c.ipo.name, symbol: c.ipo.symbol || '', type: c.ipo.type || 'Mainboard', status: status(c.ipo), open: c.ipo.openDate, close: c.ipo.closeDate, acc: c.acc.name, pan: c.acc.pan || '', cat: CATN[c.cat], appNo: c.appNo || '', lots: c.lots || 0, shares: c.shares || 0, price: c.ipo.priceHigh ?? null, amount: c.amount || 0, remarks: c.remarks }));
       const last = xlRows(ws, H, cols, rows);
       xlTotals(ws, last + 1, cols, H, last, 'TOTAL', { cat: last > H ? { formula: `SUBTOTAL(103,I${H + 1}:I${last})&" rows"` } : '' });
-      if (last > H) { cfRowTint(ws, `A${H + 1}:${colL(n)}${last}`, 'I', H + 1); cfCategory(ws, `I${H + 1}:I${last}`); cfStatus(ws, `D${H + 1}:D${last}`); }
+      if (last > H) {
+        cfRowTint(ws, `A${H + 1}:${colL(n)}${last}`, 'I', H + 1); cfCategory(ws, `I${H + 1}:I${last}`); cfStatus(ws, `D${H + 1}:D${last}`);
+        cfDupAppNo(ws, 'J', H + 1, last);
+      }
       freeze(ws, H, 1); autoF(ws, H, last, n);
     }
     return wb;
@@ -670,10 +707,10 @@
     for (const b of d.byIpo) {
       const ap = b.list.filter((c) => c.cat !== 'NONE'), no = b.list.filter((c) => c.cat === 'NONE');
       y = heading(`${b.ipo.name}${b.ipo.symbol ? ' (' + b.ipo.symbol + ')' : ''}`, `${fdx(b.ipo.openDate)} to ${fdx(b.ipo.closeDate)}  |  Price band Rs ${n(b.ipo.priceLow || b.ipo.priceHigh)} - ${n(b.ipo.priceHigh)}  |  Lot ${n(b.ipo.lotSize)}  |  sHNI ${b.t.shni}  bHNI ${b.t.bhni}  None ${b.t.none}`);
-      table({ startY: y, head: [['#', 'Account', 'PAN', 'Category', 'Lots', 'Shares', 'Upper price', 'Amount blocked', 'Remarks']],
-        body: ap.length ? ap.map((c, i) => [i + 1, c.acc.name, c.acc.pan || '', CATN[c.cat], n(c.lots), n(c.shares), n(c.ipo.priceHigh), n(c.amount), c.remarks]) : [['', 'No applications', '', '', '', '', '', '', '']],
-        foot: [['', `Applied ${b.t.applied} accounts`, '', `${b.t.shni} S / ${b.t.bhni} B`, n(b.t.lots), n(b.t.shares), '', n(b.t.amount), '']],
-        didParseCell: (x) => { if ([0, 4, 5, 6, 7].includes(x.column.index)) x.cell.styles.halign = 'right'; if (x.section === 'body' && x.column.index === 3) { if (x.cell.raw === 'sHNI') { x.cell.styles.fillColor = [207, 234, 234]; x.cell.styles.textColor = [19, 90, 93]; x.cell.styles.fontStyle = 'bold'; } if (x.cell.raw === 'bHNI') { x.cell.styles.fillColor = [211, 226, 245]; x.cell.styles.textColor = [18, 63, 117]; x.cell.styles.fontStyle = 'bold'; } } } });
+      table({ startY: y, head: [['#', 'Account', 'PAN', 'Category', 'Application no.', 'Lots', 'Shares', 'Upper price', 'Amount blocked', 'Remarks']],
+        body: ap.length ? ap.map((c, i) => [i + 1, c.acc.name, c.acc.pan || '', CATN[c.cat], c.appNo || '-', n(c.lots), n(c.shares), n(c.ipo.priceHigh), n(c.amount), c.remarks]) : [['', 'No applications', '', '', '', '', '', '', '', '']],
+        foot: [['', `Applied ${b.t.applied} accounts`, '', `${b.t.shni} S / ${b.t.bhni} B`, `${b.list.filter((c) => c.cat !== 'NONE' && c.appNo).length} nos.`, n(b.t.lots), n(b.t.shares), '', n(b.t.amount), '']],
+        didParseCell: (x) => { if ([0, 5, 6, 7, 8].includes(x.column.index)) x.cell.styles.halign = 'right'; if (x.section === 'body' && x.column.index === 3) { if (x.cell.raw === 'sHNI') { x.cell.styles.fillColor = [207, 234, 234]; x.cell.styles.textColor = [19, 90, 93]; x.cell.styles.fontStyle = 'bold'; } if (x.cell.raw === 'bHNI') { x.cell.styles.fillColor = [211, 226, 245]; x.cell.styles.textColor = [18, 63, 117]; x.cell.styles.fontStyle = 'bold'; } } } });
       if (no.length) {
         let yy = doc.lastAutoTable.finalY + 12; if (yy > H - 50) { doc.addPage(); yy = 50; }
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(90);

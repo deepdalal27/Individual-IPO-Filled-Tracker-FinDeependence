@@ -16,7 +16,8 @@ and gives IPO-wise reports you can download as **Excel** or **PDF**.
   - sHNI minimum = the fewest lots above ₹2,00,000 (maximum ₹10,00,000)
   - bHNI minimum = the fewest lots above ₹10,00,000
 
-  You can change the lots for an account within the category limits.
+  You can change the lots for an account within the category limits, and enter its **Application no.**
+  Each application number can be used only once across all IPOs and accounts (capitals and spaces are ignored when checking).
 - **Reports tab** has four views. Filter by date, IPO, account or category (sHNI, bHNI or None):
   - **By IPO:** for each IPO, how many accounts applied, with sHNI, bHNI and None counts, lots, shares and
     amount blocked, plus the account list for each IPO.
