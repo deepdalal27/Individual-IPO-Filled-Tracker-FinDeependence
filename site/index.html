@@ -47,8 +47,9 @@
       <div class="panel-head">
         <div><h2>Reports</h2><p class="muted">Every IPO and every account, with sHNI, bHNI and None counts. Click an IPO or account name to see only that IPO or account.</p></div>
         <div class="row">
-          <button class="primary" id="dlXlsx">Download Excel</button>
-          <button class="primary" id="dlPdf">Download PDF</button>
+          <label class="dl">Download <select id="dlScope" aria-label="What to download"></select></label>
+          <button class="primary" id="dlXlsx">Excel</button>
+          <button class="primary" id="dlPdf">PDF</button>
         </div>
       </div>
       <div class="filters">
@@ -110,9 +111,11 @@
       </div>
       <div class="tbl"><table id="accTable"></table></div>
       <div class="backup">
-        <p class="muted">Your accounts and applications are saved in this browser. Download a backup now and then, and use Restore to move your data to another computer or browser.</p>
-        <button id="backupBtn">Download backup</button>
-        <label class="btnlike"><input type="file" id="restoreFile" accept="application/json,.json" hidden><span role="button" tabindex="0" id="restoreBtn" class="fakebtn">Restore backup</span></label>
+        <p class="muted">Your accounts, IPOs, application numbers and categories are saved in this browser. Back up regularly. The backup file and the Excel backup can both be restored here, on this or any other computer. The PDF backup is a printable record only.</p>
+        <button id="backupBtn">Backup file</button>
+        <button id="backupXlsx">Backup as Excel</button>
+        <button id="backupPdf">Backup as PDF</button>
+        <label class="btnlike"><input type="file" id="restoreFile" accept="application/json,.json,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><span role="button" tabindex="0" id="restoreBtn" class="fakebtn">Restore backup</span></label>
       </div>
     </div>
   </section>

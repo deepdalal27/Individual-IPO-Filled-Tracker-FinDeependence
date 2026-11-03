@@ -26,7 +26,8 @@ and gives IPO-wise reports you can download as **Excel** or **PDF**.
   - **Matrix:** accounts × IPOs grid (S / B / –) with totals for each row and column.
   - **All rows:** every IPO × account pair, including None.
 
-  Click any IPO or account name to see only that IPO or account. Click a column header to sort (name A–Z, open or close date,
+  Use **Download** to choose the full report or just one section (By IPO, By account, Matrix, All rows), then click Excel or PDF.
+  By account includes each account's IPO-by-IPO history with application numbers. Click any IPO or account name to see only that IPO or account. Click a column header to sort (name A–Z, open or close date,
   amount, accounts applied), or use the Sort, Type, Status and Search filters. **Download Excel** gives a formatted workbook with five sheets: Dashboard, IPO-wise, Account-wise, Matrix and All rows.
   Conditional formatting colours sHNI teal, bHNI blue and None grey. Header filters sort A–Z or by open/close date,
   dates are real Excel dates, and totals use SUBTOTAL/COUNTIF so they follow your filters. **Download PDF** gives the same
@@ -37,7 +38,7 @@ and gives IPO-wise reports you can download as **Excel** or **PDF**.
 ## Where your data is kept
 
 Accounts, PAN numbers and applications are saved **in your browser** on the device you use. They
-are never uploaded to GitHub. The app keeps your history from now on and asks the browser not to clear it. A reminder appears when you have new entries that aren't backed up. Use **Download backup** when it does. To use another computer or browser,
+are never uploaded to GitHub. Backups come as a **backup file**, an **Excel backup** (both can be restored) and a **PDF backup** (a printable record). The app keeps your history from now on and asks the browser not to clear it. A reminder appears when you have new entries that aren't backed up. Use **Download backup** when it does. To use another computer or browser,
 open the app there and use **Restore backup**.
 
 The repository is public. Only the IPO list and the default account names (`site/accounts.js`)

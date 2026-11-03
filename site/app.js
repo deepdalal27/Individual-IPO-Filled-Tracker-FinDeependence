@@ -278,7 +278,7 @@
   };
   const pill = (cat) => `<span class="pill ${cat}">${CATN[cat] || cat}</span>`;
   let rView = store.get('rView') || 'ipo';
-  $$('#rViews button').forEach((b) => b.addEventListener('click', () => { rView = b.dataset.rv; store.set('rView', rView); renderReport(); }));
+  $$('#rViews button').forEach((b) => b.addEventListener('click', () => { rView = b.dataset.rv; store.set('rView', rView); if ($('#dlScope').value !== 'full') $('#dlScope').value = rView; renderReport(); }));
   ['rFrom', 'rTo', 'rIpo', 'rAcc', 'rCat', 'rEmpty', 'rType', 'rSt', 'rSortIpo', 'rSortAcc'].forEach((id) => $('#' + id).addEventListener('change', renderReport));
   let qTimer; $('#rQ').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(renderReport, 200); });
   $('#rSortIpo').innerHTML = Object.entries(IPO_SORTS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
@@ -493,13 +493,22 @@
   const freeze = (ws, H, xSplit = 1) => { ws.views = [{ state: 'frozen', xSplit, ySplit: H, showGridLines: false, zoomScale: 100 }]; };
   const autoF = (ws, H, last, n) => { if (last > H) ws.autoFilter = { from: { row: H, column: 1 }, to: { row: last, column: n } }; };
 
-  async function buildWorkbook(d) {
+  // Which sheets / PDF sections each download choice contains.
+  const SCOPES = {
+    full: { label: 'Full report', xl: ['dash', 'ipo', 'ipoDet', 'acc', 'accDet', 'matrix', 'rows'], pdf: ['ipoSum', 'accSum', 'matrix', 'ipoDet', 'accDet'] },
+    ipo: { label: 'By IPO', xl: ['ipo', 'ipoDet'], pdf: ['ipoSum', 'ipoDet'] },
+    acc: { label: 'By account', xl: ['acc', 'accDet'], pdf: ['accSum', 'accDet'] },
+    matrix: { label: 'Matrix', xl: ['matrix'], pdf: ['matrix'] },
+    rows: { label: 'All rows', xl: ['rows'], pdf: ['rows'] },
+  };
+  async function buildWorkbook(d, scope = 'full') {
+    const want = new Set(SCOPES[scope].xl);
     const wb = new ExcelJS.Workbook();
     wb.creator = 'FinDeependence · CA Deep Dalal'; wb.created = new Date(); wb.title = 'HNI IPO Ledger';
     const g = d.g;
 
     // 1. Dashboard
-    {
+    if (want.has('dash')) {
       const cols = [{ h: '', key: 'a', w: 30 }, { h: '', key: 'b', w: 18 }, { h: '', key: 'c', w: 18 }, { h: '', key: 'd', w: 18 }, { h: '', key: 'e', w: 22 }, { h: '', key: 'f', w: 40 }];
       const { ws } = xlSheet(wb, 'Dashboard', 'IPO Application Report · sHNI / bHNI', d, cols, { tab: XL.green });
       ws.getRow(5).values = []; ws.getRow(5).height = 8;
@@ -537,7 +546,7 @@
     }
 
     // 2. IPO-wise
-    {
+    if (want.has('ipo')) {
       const cols = [
         { h: 'IPO', key: 'name', w: 38, bold: true }, { h: 'Symbol', key: 'symbol', w: 12 }, { h: 'Type', key: 'type', w: 11, center: true }, { h: 'Status', key: 'status', w: 11, center: true },
         { h: 'Open', key: 'open', w: 13, date: true, center: true }, { h: 'Close', key: 'close', w: 13, date: true, center: true },
@@ -560,7 +569,7 @@
     }
 
     // 3. Account-wise
-    {
+    if (want.has('acc')) {
       const cols = [
         { h: '#', key: 'no', w: 5, num: true }, { h: 'Account', key: 'name', w: 30, bold: true }, { h: 'PAN', key: 'pan', w: 13 },
         { h: 'IPOs in scope', key: 'cells', w: 10, num: true, sum: true }, { h: 'IPOs applied', key: 'applied', w: 10, num: true, sum: true },
@@ -580,7 +589,7 @@
     }
 
     // 4. Matrix (S / B / –) with live COUNTIF totals
-    {
+    if (want.has('matrix')) {
       const ipoCols = d.ipos.map((i, k) => ({ h: `${i.name}\n${fdx(i.openDate)}${i.type === 'SME' ? ' · SME' : ''}`, key: 'i' + k, w: 13, center: true }));
       const cols = [{ h: 'Account', key: 'name', w: 30, bold: true }, ...ipoCols, { h: 'sHNI', key: 'cs', w: 7, num: true, hFill: XL.teal }, { h: 'bHNI', key: 'cb', w: 7, num: true, hFill: XL.pen }, { h: 'None', key: 'cn', w: 7, num: true, hFill: 'FF8C9096' }];
       const { ws, H, n } = xlSheet(wb, 'Matrix', 'Matrix · accounts × IPOs', d, cols, { matrix: true, headerHeight: 78, note: 'Read across for an account\'s IPO history, down for who applied in an IPO.' });
@@ -619,8 +628,66 @@
       freeze(ws, H, 1); autoF(ws, H, lastData, 1 + m);
     }
 
+    // Grouped statements: one block per IPO (IPO detail) or per account (Account detail),
+    // each with its own band, rows (application no. included) and subtotal.
+    const statement = (name, title, groups, cols, catKey) => {
+      const { ws, H, n } = xlSheet(wb, name, title, d, cols, { note: 'Each block is one ' + (catKey === 'acc' ? 'account' : 'IPO') + ', with its subtotal. Duplicate application numbers turn red.' });
+      let r = H + 1;
+      const catCol = colL(cols.findIndex((c) => c.key === 'cat') + 1), appCol = colL(cols.findIndex((c) => c.key === 'appNo') + 1);
+      const first = r;
+      for (const g of groups) {
+        ws.mergeCells(r, 1, r, n);
+        const band = ws.getCell(r, 1);
+        band.value = g.band; band.font = { bold: true, size: 11, color: { argb: XL.white } }; band.fill = fill(XL.teal); band.alignment = { vertical: 'middle', indent: 1 };
+        ws.getRow(r).height = 22; r++;
+        const start = r;
+        const lastRow = xlRows(ws, r - 1, cols, g.rows);
+        r = lastRow + 1;
+        const tr = ws.getRow(r);
+        cols.forEach((c, j) => {
+          const cell = tr.getCell(j + 1), L = colL(j + 1);
+          if (j === 0) cell.value = g.totalLabel;
+          else if (c.key === 'cat') cell.value = g.split;
+          else if (c.key === 'appNo') cell.value = g.nos;
+          else if (c.sum && lastRow >= start) cell.value = { formula: `SUM(${L}${start}:${L}${lastRow})` };
+          if (c.fmt) cell.numFmt = c.fmt;
+          cell.font = { bold: true, size: 10, color: { argb: XL.ink } }; cell.fill = fill(XL.chip);
+          cell.alignment = { horizontal: c.num ? 'right' : c.center ? 'center' : 'left' };
+          cell.border = { top: { style: 'thin', color: { argb: XL.navy } }, bottom: { style: 'thin', color: { argb: XL.navy } } };
+        });
+        r += 2;
+      }
+      const last = r - 1;
+      if (last > first) {
+        cfCategory(ws, `${catCol}${first}:${catCol}${last}`);
+        ws.addConditionalFormatting({ ref: `${appCol}${first}:${appCol}${last}`, rules: [{ type: 'expression', formulae: [`AND(${appCol}${first}<>"",ISERROR(SEARCH(" entered",${appCol}${first})),COUNTIF($${appCol}$${first}:$${appCol}$${last},${appCol}${first})>1)`], priority: 0, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF8D7D5' } }, font: { bold: true, color: { argb: 'FFB3261E' } } } }] });
+      }
+      ws.views = [{ state: 'frozen', xSplit: 0, ySplit: H, showGridLines: false }];
+    };
+    const rowOf = (c) => ({ ipo: c.ipo.name, symbol: c.ipo.symbol || '', type: c.ipo.type || 'Mainboard', status: status(c.ipo), open: c.ipo.openDate, close: c.ipo.closeDate, acc: c.acc.name, pan: c.acc.pan || '', cat: CATN[c.cat], appNo: c.appNo || '', lots: c.cat === 'NONE' ? null : c.lots, shares: c.cat === 'NONE' ? null : c.shares, price: c.ipo.priceHigh ?? null, amount: c.cat === 'NONE' ? null : c.amount, remarks: c.remarks });
+    const money = (k, h, w) => ({ h, key: k, w, num: true, sum: true, fmt: INR_FMT });
+    if (want.has('ipoDet')) {
+      const cols = [{ h: 'Account', key: 'acc', w: 30, bold: true }, { h: 'PAN', key: 'pan', w: 13 }, { h: 'Category', key: 'cat', w: 11, center: true }, { h: 'Application no.', key: 'appNo', w: 22, text: true },
+        money('lots', 'Lots', 9), money('shares', 'Shares', 11), { h: 'Upper price ₹', key: 'price', w: 12, num: true, fmt: INR_FMT }, money('amount', 'Amount blocked ₹', 18), { h: 'Remarks', key: 'remarks', w: 28 }];
+      statement('IPO detail', 'IPO detail · accounts in each IPO', d.byIpo.map((b) => ({
+        band: `${b.ipo.name}${b.ipo.symbol ? ' (' + b.ipo.symbol + ')' : ''}   ·   ${b.ipo.type || 'Mainboard'}   ·   ${fdx(b.ipo.openDate)} to ${fdx(b.ipo.closeDate)}   ·   ₹${inr(b.ipo.priceHigh)} × ${inr(b.ipo.lotSize)} sh   ·   ${b.ipo.status}`,
+        rows: b.list.map(rowOf), totalLabel: `Total · ${b.t.applied} of ${b.t.cells} applied`, split: `${b.t.shni} S / ${b.t.bhni} B / ${b.t.none} N`,
+        nos: `${b.list.filter((c) => c.cat !== 'NONE' && c.appNo).length} of ${b.t.applied} entered`,
+      })), cols, 'ipo');
+    }
+    if (want.has('accDet')) {
+      const cols = [{ h: 'IPO', key: 'ipo', w: 36, bold: true }, { h: 'Type', key: 'type', w: 11, center: true }, { h: 'Open', key: 'open', w: 13, date: true, center: true }, { h: 'Close', key: 'close', w: 13, date: true, center: true },
+        { h: 'Category', key: 'cat', w: 11, center: true }, { h: 'Application no.', key: 'appNo', w: 22, text: true },
+        money('lots', 'Lots', 9), money('shares', 'Shares', 11), { h: 'Upper price ₹', key: 'price', w: 12, num: true, fmt: INR_FMT }, money('amount', 'Amount blocked ₹', 18), { h: 'Remarks', key: 'remarks', w: 28 }];
+      statement('Account detail', 'Account detail · IPO history with application numbers', d.byAcc.map((b) => ({
+        band: `${b.acc.name}${b.acc.pan ? '   ·   PAN ' + b.acc.pan : ''}   ·   ${b.t.applied} of ${b.t.cells} IPOs applied   ·   ₹${inr(b.t.amount)} blocked`,
+        rows: b.list.map(rowOf), totalLabel: `Total · ${b.t.applied} IPOs`, split: `${b.t.shni} S / ${b.t.bhni} B / ${b.t.none} N`,
+        nos: `${b.list.filter((c) => c.cat !== 'NONE' && c.appNo).length} of ${b.t.applied} entered`,
+      })), cols, 'acc');
+    }
+
     // 5. All rows
-    {
+    if (want.has('rows')) {
       const cols = [
         { h: 'IPO', key: 'ipo', w: 36, bold: true }, { h: 'Symbol', key: 'symbol', w: 12 }, { h: 'Type', key: 'type', w: 11, center: true }, { h: 'Status', key: 'status', w: 11, center: true },
         { h: 'Open', key: 'open', w: 13, date: true, center: true }, { h: 'Close', key: 'close', w: 13, date: true, center: true },
@@ -640,20 +707,24 @@
     }
     return wb;
   }
+  const dlScope = () => (SCOPES[$('#dlScope').value] ? $('#dlScope').value : 'full');
+  const scopeFile = (sc) => ({ full: 'Full-Report', ipo: 'By-IPO', acc: 'By-Account', matrix: 'Matrix', rows: 'All-Rows' }[sc]);
+  $('#dlScope').innerHTML = Object.entries(SCOPES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
   $('#dlXlsx').addEventListener('click', async () => {
     if (!window.ExcelJS) return toast('Excel library did not load. Reload the page.', true);
     const btn = $('#dlXlsx'); btn.disabled = true; btn.textContent = 'Preparing…';
     try {
-      const wb = await buildWorkbook(buildData(filters()));
-      save(`FinDeependence-IPO-Report-${fileStamp()}.xlsx`, await wb.xlsx.writeBuffer());
+      const sc = dlScope();
+      const wb = await buildWorkbook(buildData(filters()), sc);
+      save(`FinDeependence-IPO-${scopeFile(sc)}-${fileStamp()}.xlsx`, await wb.xlsx.writeBuffer());
     } catch (e) { console.error(e); toast('Could not build the Excel file', true); }
-    btn.disabled = false; btn.textContent = 'Download Excel';
+    btn.disabled = false; btn.textContent = 'Excel';
   });
 
   $('#dlPdf').addEventListener('click', () => {
     const J = window.jspdf?.jsPDF;
     if (!J) return toast('PDF library did not load. Reload the page.', true);
-    const d = buildData(filters()), g = d.g;
+    const d = buildData(filters()), g = d.g, sc = dlScope(), want = new Set(SCOPES[sc].pdf);
     const n = (v) => (v == null ? '-' : Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 }));
     const doc = new J({ orientation: 'landscape', unit: 'pt', format: 'a4' });
     const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
@@ -675,28 +746,34 @@
       if (sub) { doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90); doc.text(sub, 32, y + 12); }
       return y + (sub ? 18 : 8);
     };
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(14, 39, 64); doc.text('IPO Application Report - sHNI / bHNI', 32, 50);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(14, 39, 64); doc.text(`IPO Application Report - ${SCOPES[sc].label}`, 32, 50);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90);
-    const sc = scopeText(d.f);
-    doc.text(`Generated ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST${sc ? '   |   ' + sc : ''}   |   Amounts in Rs at upper price band`, 32, 64);
+    const scT = scopeText(d.f);
+    doc.text(`Generated ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST${scT ? '   |   ' + scT : ''}   |   Amounts in Rs at upper price band`, 32, 64);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(20);
     doc.text(`IPOs ${d.ipos.length}   Accounts ${d.accounts.length}   sHNI ${g.shni}   bHNI ${g.bhni}   None ${g.none}   Lots ${n(g.lots)}   Shares ${n(g.shares)}   Blocked Rs ${n(g.amount)}`, 32, 82);
     const chip = (x, rgb, txt, tc) => { doc.setFillColor(...rgb); doc.roundedRect(x, 88, 46, 13, 2, 2, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...tc); doc.text(txt, x + 23, 97, { align: 'center' }); };
     chip(32, [44, 143, 147], 'S = sHNI', [255, 255, 255]); chip(84, [29, 95, 168], 'B = bHNI', [255, 255, 255]); chip(136, [240, 236, 228], '- = None', [120, 124, 130]);
     doc.lastAutoTable = { finalY: 98 };
-    let y = heading('IPO-wise summary');
+    let y;
+    const catCell = (x, col) => { if (x.section === 'body' && x.column.index === col) { if (x.cell.raw === 'sHNI') { x.cell.styles.fillColor = [207, 234, 234]; x.cell.styles.textColor = [19, 90, 93]; x.cell.styles.fontStyle = 'bold'; } if (x.cell.raw === 'bHNI') { x.cell.styles.fillColor = [211, 226, 245]; x.cell.styles.textColor = [18, 63, 117]; x.cell.styles.fontStyle = 'bold'; } if (x.cell.raw === 'None') { x.cell.styles.textColor = [140, 144, 150]; } } };
+    if (want.has('ipoSum')) {
+    y = heading('IPO-wise summary');
     table({ startY: y, head: [['IPO', 'Open', 'Close', 'Status', 'Upper price', 'Lot', 'Applied', 'sHNI', 'bHNI', 'None', 'Lots', 'Shares', 'Amount blocked']],
       body: d.byIpo.map((b) => [b.ipo.name, fdx(b.ipo.openDate), fdx(b.ipo.closeDate), b.ipo.status, n(b.ipo.priceHigh), n(b.ipo.lotSize), `${b.t.applied}/${b.t.cells}`, b.t.shni, b.t.bhni, b.t.none, n(b.t.lots), n(b.t.shares), n(b.t.amount)]),
       foot: [['TOTAL', '', '', '', '', '', `${g.applied}/${g.cells}`, g.shni, g.bhni, g.none, n(g.lots), n(g.shares), n(g.amount)]],
       tint: 7 }, 4);
+    }
+    if (want.has('accSum')) {
     y = heading('Account-wise summary');
     table({ startY: y, head: [['#', 'Account', 'PAN', 'IPOs applied', 'sHNI', 'bHNI', 'None', 'Hit rate', 'Amount blocked', 'Last applied in']],
       body: d.byAcc.map((b, i) => [i + 1, b.acc.name, b.acc.pan || '', `${b.t.applied}/${b.t.cells}`, b.t.shni, b.t.bhni, b.t.none, pct(b.t.applied, b.t.cells), n(b.t.amount), b.last?.name || '-']),
       foot: [['', 'TOTAL', '', `${g.applied}/${g.cells}`, g.shni, g.bhni, g.none, pct(g.applied, g.cells), n(g.amount), '']],
       rightTo: 9, tint: 4 }, 3);
+    }
     // Matrix in chunks of 10 IPOs so it fits the page width.
     const cellOf = (ipo, acc) => d.shown.find((c) => c.ipo === ipo && c.acc === acc);
-    for (let k = 0; k < d.ipos.length; k += 10) {
+    if (want.has('matrix')) for (let k = 0; k < d.ipos.length; k += 10) {
       const part = d.ipos.slice(k, k + 10);
       y = heading(`Matrix${d.ipos.length > 10 ? ` (IPOs ${k + 1}-${k + part.length})` : ''}`, 'S = sHNI   B = bHNI   - = None');
       table({ startY: y, head: [['Account', ...part.map((i) => (i.symbol || i.name).slice(0, 12))]],
@@ -704,7 +781,7 @@
         foot: [['sHNI / bHNI / None', ...part.map((i) => { const b = d.byIpo.find((x) => x.ipo.id === i.id); return `${b.t.shni}/${b.t.bhni}/${b.t.none}`; })]],
         didParseCell: (x) => { if (x.column.index > 0) x.cell.styles.halign = 'center'; if (x.section !== 'body') return; if (x.cell.raw === 'S') { x.cell.styles.fillColor = [44, 143, 147]; x.cell.styles.textColor = 255; x.cell.styles.fontStyle = 'bold'; } if (x.cell.raw === 'B') { x.cell.styles.fillColor = [29, 95, 168]; x.cell.styles.textColor = 255; x.cell.styles.fontStyle = 'bold'; } if (x.cell.raw === '-') { x.cell.styles.fillColor = [240, 236, 228]; x.cell.styles.textColor = [140, 144, 150]; } } });
     }
-    for (const b of d.byIpo) {
+    if (want.has('ipoDet')) for (const b of d.byIpo) {
       const ap = b.list.filter((c) => c.cat !== 'NONE'), no = b.list.filter((c) => c.cat === 'NONE');
       y = heading(`${b.ipo.name}${b.ipo.symbol ? ' (' + b.ipo.symbol + ')' : ''}`, `${fdx(b.ipo.openDate)} to ${fdx(b.ipo.closeDate)}  |  Price band Rs ${n(b.ipo.priceLow || b.ipo.priceHigh)} - ${n(b.ipo.priceHigh)}  |  Lot ${n(b.ipo.lotSize)}  |  sHNI ${b.t.shni}  bHNI ${b.t.bhni}  None ${b.t.none}`);
       table({ startY: y, head: [['#', 'Account', 'PAN', 'Category', 'Application no.', 'Lots', 'Shares', 'Upper price', 'Amount blocked', 'Remarks']],
@@ -718,6 +795,29 @@
         doc.text(lines, 32, yy); doc.lastAutoTable.finalY = yy + lines.length * 10;
       }
     }
+    // Account statements: every IPO for each account, with its application number.
+    if (want.has('accDet')) for (const b of d.byAcc) {
+      const ap = b.list.filter((c) => c.cat !== 'NONE'), no = b.list.filter((c) => c.cat === 'NONE');
+      y = heading(`${b.acc.name}${b.acc.pan ? '  (PAN ' + b.acc.pan + ')' : ''}`, `${b.t.applied} of ${b.t.cells} IPOs applied  |  sHNI ${b.t.shni}  bHNI ${b.t.bhni}  None ${b.t.none}  |  Blocked Rs ${n(b.t.amount)}`);
+      table({ startY: y, head: [['#', 'IPO', 'Type', 'Open', 'Close', 'Category', 'Application no.', 'Lots', 'Shares', 'Upper price', 'Amount blocked', 'Remarks']],
+        body: ap.length ? ap.map((c, i) => [i + 1, c.ipo.name, c.ipo.type || 'Mainboard', fdx(c.ipo.openDate), fdx(c.ipo.closeDate), CATN[c.cat], c.appNo || '-', n(c.lots), n(c.shares), n(c.ipo.priceHigh), n(c.amount), c.remarks]) : [['', 'No applications in this period', '', '', '', '', '', '', '', '', '', '']],
+        foot: [['', `Total · ${b.t.applied} IPOs`, '', '', '', `${b.t.shni} S / ${b.t.bhni} B`, `${ap.filter((c) => c.appNo).length} nos.`, n(b.t.lots), n(b.t.shares), '', n(b.t.amount), '']],
+        didParseCell: (x) => { if ([0, 7, 8, 9, 10].includes(x.column.index)) x.cell.styles.halign = 'right'; catCell(x, 5); } });
+      if (no.length) {
+        let yy = doc.lastAutoTable.finalY + 12; if (yy > H - 50) { doc.addPage(); yy = 50; }
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(90);
+        const lines = doc.splitTextToSize(`Not applied (${no.length}): ${no.map((c) => c.ipo.name).join(', ')}`, W - 64);
+        doc.text(lines, 32, yy); doc.lastAutoTable.finalY = yy + lines.length * 10;
+      }
+    }
+    // All rows: one flat table.
+    if (want.has('rows')) {
+      y = heading('All rows · every IPO × account');
+      table({ startY: y, head: [['IPO', 'Open', 'Close', 'Account', 'PAN', 'Category', 'Application no.', 'Lots', 'Shares', 'Upper price', 'Amount blocked']],
+        body: d.shown.map((c) => [c.ipo.name, fdx(c.ipo.openDate), fdx(c.ipo.closeDate), c.acc.name, c.acc.pan || '', CATN[c.cat], c.appNo || (c.cat === 'NONE' ? '' : '-'), c.cat === 'NONE' ? '' : n(c.lots), c.cat === 'NONE' ? '' : n(c.shares), n(c.ipo.priceHigh), c.cat === 'NONE' ? '' : n(c.amount)]),
+        foot: [['TOTAL', '', '', `${d.shown.length} rows`, '', `${g.shni} S / ${g.bhni} B / ${g.none} N`, '', n(g.lots), n(g.shares), '', n(g.amount)]],
+        didParseCell: (x) => { if ([7, 8, 9, 10].includes(x.column.index)) x.cell.styles.halign = 'right'; catCell(x, 5); } });
+    }
     const pages = doc.getNumberOfPages();
     for (let i = 1; i <= pages; i++) {
       doc.setPage(i);
@@ -726,7 +826,7 @@
       doc.setFont('helvetica', 'normal'); doc.setTextColor(255); doc.text('CA Deep Dalal  |  Chartered Accountant  |  Fund Manager', W - 32, 18, { align: 'right' });
       doc.setFontSize(8); doc.setTextColor(140); doc.text('FinDeependence · HNI IPO Ledger', 32, H - 16); doc.text(`Page ${i} of ${pages}`, W - 32, H - 16, { align: 'right' });
     }
-    save(`FinDeependence-IPO-Report-${fileStamp()}.pdf`, doc.output('arraybuffer'));
+    save(`FinDeependence-IPO-${scopeFile(sc)}-${fileStamp()}.pdf`, doc.output('arraybuffer'));
   });
 
   // ---------- IPOs ----------
@@ -883,6 +983,100 @@
     .finally(() => { S.loaded.ipos = true; refresh(); });
 
   // ---------- backup / restore ----------
+  // ---- Backup as Excel (readable sheets + a hidden copy of the full data, so it can be restored) ----
+  const backupPayload = () => ({ app: 'findeependence-ipo-ledger', version: 1, savedAt: new Date().toISOString(), ...local });
+  function backupRows() {
+    const accs = new Map(S.accounts.map((a) => [a.id, a])), ipos = new Map(S.ipos.map((i) => [i.id, i]));
+    const apps = [...S.apps.entries()].filter(([, a]) => a.category).map(([k, a]) => {
+      const ipo = ipos.get(a.ipoId), acc = accs.get(a.accountId);
+      const c = ipo ? calc(ipo, a) : { lots: null, shares: null, amount: null };
+      return { k, a, ipo, acc, c };
+    }).filter((x) => x.ipo && x.acc)
+      .sort((x, y) => String(y.ipo.openDate || '').localeCompare(String(x.ipo.openDate || '')) || x.ipo.name.localeCompare(y.ipo.name) || (x.acc.order || 0) - (y.acc.order || 0));
+    return { apps, accounts: sortedAccounts(), ipos: sortedIpos() };
+  }
+  async function backupExcel() {
+    if (!window.ExcelJS) return toast('Excel library did not load. Reload the page.', true);
+    const { apps, accounts, ipos } = backupRows();
+    const wb = new ExcelJS.Workbook(); wb.creator = 'FinDeependence · CA Deep Dalal'; wb.created = new Date();
+    const d0 = { f: {} };
+    const sheet = (name, title, cols, rows, cat) => {
+      const { ws, H, n } = xlSheet(wb, name, title, d0, cols, { note: 'Backup taken ' + new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST. Restore it from Accounts → Restore backup.' });
+      const last = xlRows(ws, H, cols, rows);
+      if (cat && last > H) { const L = colL(cols.findIndex((c) => c.key === 'cat') + 1); cfCategory(ws, `${L}${H + 1}:${L}${last}`); }
+      freeze(ws, H, 1); autoF(ws, H, last, n);
+      return { ws, H, last };
+    };
+    const ap = sheet('Applications', 'Backup · all applications', [
+      { h: 'IPO', key: 'ipo', w: 36, bold: true }, { h: 'Symbol', key: 'symbol', w: 12 }, { h: 'Type', key: 'type', w: 11, center: true }, { h: 'Open', key: 'open', w: 13, date: true, center: true }, { h: 'Close', key: 'close', w: 13, date: true, center: true },
+      { h: 'Account', key: 'acc', w: 28 }, { h: 'PAN', key: 'pan', w: 13 }, { h: 'Category', key: 'cat', w: 11, center: true }, { h: 'Application no.', key: 'appNo', w: 22, text: true },
+      { h: 'Lots', key: 'lots', w: 8, num: true, fmt: INR_FMT }, { h: 'Shares', key: 'shares', w: 10, num: true, fmt: INR_FMT }, { h: 'Upper price ₹', key: 'price', w: 11, num: true, fmt: INR_FMT }, { h: 'Amount blocked ₹', key: 'amount', w: 17, num: true, fmt: INR_FMT },
+      { h: 'Remarks', key: 'remarks', w: 26 }, { h: 'Last updated', key: 'upd', w: 20 },
+    ], apps.map(({ a, ipo, acc, c }) => ({ ipo: ipo.name, symbol: ipo.symbol || '', type: ipo.type || 'Mainboard', open: ipo.openDate, close: ipo.closeDate, acc: acc.name, pan: acc.pan || '', cat: CATN[a.category], appNo: a.appNo || '', lots: c.lots, shares: c.shares, price: ipo.priceHigh ?? null, amount: c.amount, remarks: a.remarks || '', upd: a.updatedAt ? new Date(a.updatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '' })), true);
+    if (ap.last > ap.H) cfDupAppNo(ap.ws, 'I', ap.H + 1, ap.last);
+    sheet('Accounts', 'Backup · accounts', [{ h: '#', key: 'no', w: 5, num: true }, { h: 'Account', key: 'name', w: 32, bold: true }, { h: 'PAN', key: 'pan', w: 13 }, { h: 'Notes', key: 'notes', w: 40 }, { h: 'Active', key: 'active', w: 9, center: true }],
+      accounts.map((a, i) => ({ no: i + 1, name: a.name, pan: a.pan || '', notes: a.notes || '', active: a.active === false ? 'No' : 'Yes' })));
+    sheet('IPOs', 'Backup · IPOs', [{ h: 'IPO', key: 'name', w: 40, bold: true }, { h: 'Symbol', key: 'symbol', w: 12 }, { h: 'Type', key: 'type', w: 11, center: true }, { h: 'Open', key: 'open', w: 13, date: true, center: true }, { h: 'Close', key: 'close', w: 13, date: true, center: true },
+      { h: 'Price low ₹', key: 'low', w: 11, num: true, fmt: INR_FMT }, { h: 'Upper price ₹', key: 'high', w: 12, num: true, fmt: INR_FMT }, { h: 'Lot size', key: 'lot', w: 10, num: true, fmt: INR_FMT }, { h: 'Source', key: 'src', w: 14 }],
+      ipos.map((i) => ({ name: i.name, symbol: i.symbol || '', type: i.type || 'Mainboard', open: i.openDate, close: i.closeDate, low: i.priceLow, high: i.priceHigh, lot: i.lotSize, src: (i.source || 'Manual') + (i.edited && i.source === 'NSE' ? ' (edited)' : '') })));
+    // Hidden sheet with the complete data, in chunks (Excel cells hold up to 32,767 characters).
+    const raw = wb.addWorksheet('_restore', { state: 'veryHidden' });
+    const json = JSON.stringify(backupPayload());
+    raw.getCell(1, 1).value = 'findeependence-ipo-ledger-backup-v1';
+    for (let i = 0, r = 2; i < json.length; i += 30000, r++) raw.getCell(r, 1).value = json.slice(i, i + 30000);
+    persist(true); backupNote();
+    save(`FinDeependence-IPO-backup-${istToday()}.xlsx`, await wb.xlsx.writeBuffer());
+    toast('Excel backup downloaded');
+  }
+  function backupPdf() {
+    const J = window.jspdf?.jsPDF;
+    if (!J) return toast('PDF library did not load. Reload the page.', true);
+    const { apps, accounts, ipos } = backupRows();
+    const n = (v) => (v == null ? '-' : Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 }));
+    const doc = new J({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+    const head = { fillColor: [14, 39, 64], textColor: 255, fontStyle: 'bold' };
+    const catCell = (x, col) => { if (x.section === 'body' && x.column.index === col) { if (x.cell.raw === 'sHNI') { x.cell.styles.fillColor = [207, 234, 234]; x.cell.styles.textColor = [19, 90, 93]; x.cell.styles.fontStyle = 'bold'; } if (x.cell.raw === 'bHNI') { x.cell.styles.fillColor = [211, 226, 245]; x.cell.styles.textColor = [18, 63, 117]; x.cell.styles.fontStyle = 'bold'; } } };
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(14, 39, 64); doc.text('Data backup - HNI IPO Ledger', 32, 50);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90);
+    doc.text(`Taken ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST   |   ${apps.length} applications · ${accounts.length} accounts · ${ipos.length} IPOs   |   Printable record; use the backup file or Excel backup to restore`, 32, 64);
+    let y = 80;
+    const sec = (t) => { y = (doc.lastAutoTable?.finalY || y) + 24; if (y > H - 90) { doc.addPage(); y = 50; } doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(14, 39, 64); doc.text(t, 32, y); return y + 8; };
+    doc.lastAutoTable = { finalY: 66 };
+    // Applications grouped by IPO
+    const byIpo = new Map(); for (const x of apps) { if (!byIpo.has(x.ipo.id)) byIpo.set(x.ipo.id, []); byIpo.get(x.ipo.id).push(x); }
+    if (!byIpo.size) { y = sec('Applications'); doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text('No applications saved yet.', 32, y + 10); doc.lastAutoTable.finalY = y + 14; }
+    for (const list of byIpo.values()) {
+      const ipo = list[0].ipo;
+      const s0 = sec(`${ipo.name}${ipo.symbol ? ' (' + ipo.symbol + ')' : ''}`);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90);
+      doc.text(`${ipo.type || 'Mainboard'}  |  ${fdx(ipo.openDate)} to ${fdx(ipo.closeDate)}  |  Price band Rs ${n(ipo.priceLow || ipo.priceHigh)} - ${n(ipo.priceHigh)}  |  Lot ${n(ipo.lotSize)}`, 32, s0 + 4);
+      doc.autoTable({ startY: s0 + 10, margin: { left: 32, right: 32, top: 40 }, headStyles: head, styles: { fontSize: 8, cellPadding: 3.5 },
+        head: [['#', 'Account', 'PAN', 'Category', 'Application no.', 'Lots', 'Shares', 'Amount blocked', 'Remarks']],
+        body: list.map((x, i) => [i + 1, x.acc.name, x.acc.pan || '', CATN[x.a.category], x.a.appNo || '-', n(x.c.lots), n(x.c.shares), n(x.c.amount), x.a.remarks || '']),
+        didParseCell: (x) => { if ([0, 5, 6, 7].includes(x.column.index)) x.cell.styles.halign = 'right'; catCell(x, 3); } });
+    }
+    y = sec('Accounts');
+    doc.autoTable({ startY: y, margin: { left: 32, right: 32, top: 40 }, headStyles: head, styles: { fontSize: 8, cellPadding: 3.5 },
+      head: [['#', 'Account', 'PAN', 'Notes', 'Active']], body: accounts.map((a, i) => [i + 1, a.name, a.pan || '', a.notes || '', a.active === false ? 'No' : 'Yes']) });
+    y = sec('IPOs');
+    doc.autoTable({ startY: y, margin: { left: 32, right: 32, top: 40 }, headStyles: head, styles: { fontSize: 8, cellPadding: 3.5 },
+      head: [['IPO', 'Symbol', 'Type', 'Open', 'Close', 'Price band', 'Lot', 'Source']],
+      body: ipos.map((i) => [i.name, i.symbol || '', i.type || 'Mainboard', fdx(i.openDate), fdx(i.closeDate), i.priceHigh ? `${n(i.priceLow || i.priceHigh)} - ${n(i.priceHigh)}` : 'TBA', n(i.lotSize), i.source || 'Manual']) });
+    const pages = doc.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) {
+      doc.setPage(i);
+      doc.setFillColor(14, 39, 64); doc.rect(0, 0, W, 28, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(127, 211, 214); doc.text('FINDEEPENDENCE', 32, 18);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(255); doc.text('CA Deep Dalal  |  Chartered Accountant  |  Fund Manager', W - 32, 18, { align: 'right' });
+      doc.setFontSize(8); doc.setTextColor(140); doc.text('FinDeependence · HNI IPO Ledger · Data backup', 32, H - 16); doc.text(`Page ${i} of ${pages}`, W - 32, H - 16, { align: 'right' });
+    }
+    persist(true); backupNote();
+    save(`FinDeependence-IPO-backup-${istToday()}.pdf`, doc.output('arraybuffer'));
+    toast('PDF backup downloaded');
+  }
+  $('#backupXlsx').addEventListener('click', () => backupExcel().catch((e) => { console.error(e); toast('Could not build the Excel backup', true); }));
+  $('#backupPdf').addEventListener('click', () => { try { backupPdf(); } catch (e) { console.error(e); toast('Could not build the PDF backup', true); } });
   function doBackup() {
     persist(true);
     save(`FinDeependence-IPO-backup-${istToday()}.json`, new Blob([JSON.stringify({ app: 'findeependence-ipo-ledger', version: 1, savedAt: new Date().toISOString(), ...local }, null, 2)], { type: 'application/json' }));
@@ -897,7 +1091,15 @@
   $('#restoreFile').addEventListener('change', async (e) => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
     try {
-      const v = JSON.parse(await f.text());
+      let v;
+      if (/\.xlsx$/i.test(f.name)) {
+        if (!window.ExcelJS) throw new Error('nolib');
+        const wb = new ExcelJS.Workbook(); await wb.xlsx.load(await f.arrayBuffer());
+        const raw = wb.getWorksheet('_restore');
+        if (!raw || raw.getCell(1, 1).value !== 'findeependence-ipo-ledger-backup-v1') throw new Error('bad');
+        let json = ''; for (let r = 2; r <= raw.rowCount; r++) json += String(raw.getCell(r, 1).value || '');
+        v = JSON.parse(json);
+      } else v = JSON.parse(await f.text());
       if (v.app !== 'findeependence-ipo-ledger' || !v.accounts) throw new Error('bad');
       local = { accounts: v.accounts || {}, apps: v.apps || {}, ipos: v.ipos || {}, meta: v.meta || {} };
       persist(true); refresh(); toast('Backup restored');

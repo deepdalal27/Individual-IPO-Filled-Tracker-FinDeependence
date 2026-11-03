@@ -165,3 +165,5 @@ th.sortable.on .arr { opacity: 1; color: var(--accent); }
 input.appno { width: 150px; font-family: var(--mono); letter-spacing: .02em; }
 input.appno.dup { border-color: var(--danger); background: rgba(179,38,30,.08); }
 td.warn { color: var(--soon); font-weight: 600; }
+label.dl { display: flex; align-items: center; gap: 6px; font: 700 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+label.dl select { font: 500 13px var(--sans); letter-spacing: 0; text-transform: none; color: var(--fg); }
