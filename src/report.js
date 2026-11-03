@@ -64,7 +64,7 @@ async function toExcel(report) {
   const money = '#,##,##0';
   const head = (row) => {
     row.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    row.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E79' } }; c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; });
+    row.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0E2740' } }; c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; });
   };
 
   // Sheet 1: IPO-wise summary
@@ -95,7 +95,7 @@ async function toExcel(report) {
   const g = report.grand;
   const tr = s.addRow({ name: 'GRAND TOTAL', shni: g.shni, bhni: g.bhni, lots: g.lots, shares: g.shares, amount: g.amount });
   tr.font = { bold: true };
-  tr.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDEBF7' } }; });
+  tr.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAE3D2' } }; });
 
   // Sheet 2: account-wise detail
   const d = wb.addWorksheet('Account Detail', { views: [{ state: 'frozen', ySplit: 1 }] });
@@ -144,9 +144,9 @@ function toPdf(report) {
       const drawRow = (vals, style) => {
         if (doc.y + rowH > bottom()) { doc.addPage(); if (!style.header) drawRow(cols.map((c) => c.h), { header: true }); }
         const y = doc.y;
-        if (style.header) doc.rect(L, y, W, rowH).fill('#1F4E79');
-        else if (style.total) doc.rect(L, y, W, rowH).fill('#DDEBF7');
-        else if (style.zebra) doc.rect(L, y, W, rowH).fill('#F7F9FC');
+        if (style.header) doc.rect(L, y, W, rowH).fill('#0E2740');
+        else if (style.total) doc.rect(L, y, W, rowH).fill('#EAE3D2');
+        else if (style.zebra) doc.rect(L, y, W, rowH).fill('#F6F2E8');
         doc.fillColor(style.header ? '#FFFFFF' : '#111111').font(style.header || style.total ? 'Helvetica-Bold' : 'Helvetica').fontSize(8.5);
         let x = L;
         vals.forEach((v, i) => {
@@ -161,8 +161,12 @@ function toPdf(report) {
       doc.moveDown(opts.gap ?? 1);
     }
 
-    // Header
-    doc.font('Helvetica-Bold').fontSize(16).fillColor('#1F4E79').text('IPO Application Report - sHNI / bHNI', L);
+    // Header: FinDeependence navy strip
+    doc.rect(0, 0, doc.page.width, 26).fill('#0E2740');
+    doc.font('Helvetica-Bold').fontSize(9).fillColor('#7FD3D6').text('FINDEEPENDENCE', L, 9, { lineBreak: false });
+    doc.font('Helvetica').fontSize(9).fillColor('#FFFFFF').text('CA Deep Dalal  |  Chartered Accountant  |  Fund Manager', L, 9, { width: W, align: 'right', lineBreak: false });
+    doc.x = L; doc.y = 42;
+    doc.font('Helvetica-Bold').fontSize(16).fillColor('#0E2740').text('IPO Application Report - sHNI / bHNI', L);
     const f = report.filters;
     const scope = [f.from && `From ${fmtDate(f.from)}`, f.to && `To ${fmtDate(f.to)}`, f.category && `Category: ${CAT_LABEL[f.category]}`].filter(Boolean).join('   ');
     doc.font('Helvetica').fontSize(9).fillColor('#555555')
@@ -175,7 +179,7 @@ function toPdf(report) {
     doc.moveDown(0.8);
 
     // Summary table
-    doc.font('Helvetica-Bold').fontSize(12).fillColor('#1F4E79').text('IPO-wise Summary');
+    doc.font('Helvetica-Bold').fontSize(12).fillColor('#0E2740').text('IPO-wise Summary');
     doc.moveDown(0.3);
     table(
       [
@@ -192,7 +196,7 @@ function toPdf(report) {
     // Detail per IPO
     for (const b of report.blocks) {
       if (doc.y + 80 > bottom()) doc.addPage();
-      doc.font('Helvetica-Bold').fontSize(11).fillColor('#1F4E79').text(`${b.ipo.name}${b.ipo.symbol ? ' (' + b.ipo.symbol + ')' : ''}`);
+      doc.font('Helvetica-Bold').fontSize(11).fillColor('#0E2740').text(`${b.ipo.name}${b.ipo.symbol ? ' (' + b.ipo.symbol + ')' : ''}`);
       doc.font('Helvetica').fontSize(8.5).fillColor('#555555')
         .text(`${fmtDate(b.ipo.openDate)} to ${fmtDate(b.ipo.closeDate)}  |  Price band Rs ${priceBand(b.ipo)}  |  Lot ${inr(b.ipo.lotSize)} shares  |  1 lot = Rs ${inr(b.ipo.lotAmount)}`);
       doc.moveDown(0.3);
