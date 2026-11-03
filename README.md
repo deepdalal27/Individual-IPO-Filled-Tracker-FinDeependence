@@ -25,8 +25,10 @@ and gives IPO-wise reports you can download as **Excel** or **PDF**.
   - **Matrix:** accounts × IPOs grid (S / B / –) with totals for each row and column.
   - **All rows:** every IPO × account pair, including None.
 
-  Click any IPO or account name to see only that IPO or account. **Download Excel** gives five sheets you can filter
-  and use in pivot tables: Overview, IPO-wise, Account-wise, Matrix and All rows. **Download PDF** gives the same
+  Click any IPO or account name to see only that IPO or account. Click a column header to sort (name A–Z, open or close date,
+  amount, accounts applied), or use the Sort, Type, Status and Search filters. **Download Excel** gives a formatted workbook with five sheets: Dashboard, IPO-wise, Account-wise, Matrix and All rows.
+  Conditional formatting colours sHNI teal, bHNI blue and None grey. Header filters sort A–Z or by open/close date,
+  dates are real Excel dates, and totals use SUBTOTAL/COUNTIF so they follow your filters. **Download PDF** gives the same
   summaries, the matrix, and the account list for each IPO.
 - **IPOs tab:** lists every IPO received from NSE. You only add one by hand if it's missing. Your edits stay even when the NSE list updates.
 - **Accounts tab:** the 24 account holders are pre-filled. Rename them, add PAN and notes, or add more.

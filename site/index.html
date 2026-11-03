@@ -52,11 +52,16 @@
         </div>
       </div>
       <div class="filters">
+        <label class="wide">Search IPO <input type="search" id="rQ" placeholder="Name or symbol"></label>
         <label>From <input type="date" id="rFrom"></label>
         <label>To <input type="date" id="rTo"></label>
         <label>IPO <select id="rIpo"><option value="">All IPOs</option></select></label>
         <label>Account <select id="rAcc"><option value="">All accounts</option></select></label>
         <label>Category <select id="rCat"><option value="">sHNI + bHNI + None</option><option value="SHNI">sHNI only</option><option value="BHNI">bHNI only</option><option value="NONE">None only</option></select></label>
+        <label>Type <select id="rType"><option value="">Mainboard + SME</option><option value="Mainboard">Mainboard</option><option value="SME">SME</option></select></label>
+        <label>Status <select id="rSt"><option value="">Any status</option><option>Open</option><option>Upcoming</option><option>Closed</option></select></label>
+        <label>Sort IPOs <select id="rSortIpo"></select></label>
+        <label>Sort accounts <select id="rSortAcc"></select></label>
         <label class="check"><input type="checkbox" id="rEmpty"> Include IPOs not applied</label>
         <div class="row">
           <button data-range="month">This month</button>
@@ -114,7 +119,7 @@
 </main>
 <div id="toast" role="status" aria-live="polite"></div>
 <p class="byline">FinDeependence · CA Deep Dalal · Chartered Accountant · Fund Manager</p>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="accounts.js"></script>
