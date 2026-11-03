@@ -24,7 +24,7 @@ download as **Excel** and **PDF**.
   Account Detail) or **Download PDF**.
 - **Manual IPOs** – add or edit any IPO by hand (e.g. if NSE is unreachable, or for an SME
   issue). Edited IPOs are not overwritten by the auto-sync.
-- **Accounts** – rename the 24 accounts, add PAN and notes, deactivate or add more.
+- **Accounts** – the 24 account holders come pre-filled; rename them, add PAN and notes, deactivate or add more.
 
 ## Run it on your own computer
 
@@ -60,7 +60,6 @@ npm start
 | `DATA_DIR` | `./data` | Where `db.json` is stored. Back this folder up. |
 | `SYNC_INTERVAL_HOURS` | `3` | How often to pull IPOs from NSE |
 | `INCLUDE_SME` | `0` | Set `1` to also import SME IPOs |
-| `DEFAULT_ACCOUNTS` | `24` | Number of accounts created on first start |
 | `DISABLE_SYNC` | `0` | Set `1` to turn off auto-sync |
 
 ### Notes

@@ -6,7 +6,34 @@ const crypto = require('crypto');
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const FILE = path.join(DATA_DIR, 'db.json');
-const DEFAULT_ACCOUNTS = Number(process.env.DEFAULT_ACCOUNTS || 24);
+// Account holders created on first start (editable in the Accounts tab).
+const DEFAULT_NAMES = [
+  'Hansaben B Shah',
+  'Manishkumar Kumarpal Vora',
+  'Jignesh Kumarpal Shah',
+  'Kumarpal C Vora (Huf)',
+  'Komal Manish Vora',
+  'Kumarpal Chandulal Vora',
+  'Manish K Vora (Huf)',
+  'Dev M Vora',
+  'Nitinbhai C Shah',
+  'Jigna Jignesh Shah',
+  'Ansh Zaveri',
+  'Mahesh Dalpatlal Doshi',
+  'Dhwet Jignesh Shah',
+  'Alkaben Maheshbhai Doshi',
+  'Preritaben Nitinbhai Shah',
+  'Narayan Meena',
+  'Parshanath LLP',
+  'Arth Maheshbhai Doshi',
+  'Jignesh Kumarpal Shah (Huf)',
+  'Vasantiben Kumarpal Vora',
+  'Jayshreeben Sheth',
+  'Bipin Vaghela',
+  'Tulasi Narayan Meena',
+  'Dodiya Hiteshbhai',
+];
+
 
 let state = null;
 
@@ -21,9 +48,9 @@ function load() {
     state = JSON.parse(fs.readFileSync(FILE, 'utf8'));
   } else {
     state = { accounts: [], ipos: [], applications: [], meta: {} };
-    for (let i = 1; i <= DEFAULT_ACCOUNTS; i++) {
-      state.accounts.push({ id: id(), name: `Account ${i}`, pan: '', notes: '', active: true, order: i });
-    }
+    DEFAULT_NAMES.forEach((name, i) => {
+      state.accounts.push({ id: id(), name, pan: '', notes: '', active: true, order: i + 1 });
+    });
     save();
   }
   state.meta = state.meta || {};
