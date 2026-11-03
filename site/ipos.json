@@ -1,8 +1,47 @@
 {
-  "updatedAt": "2026-11-03T11:11:18.063Z",
+  "updatedAt": "2026-11-03T11:38:53.533Z",
   "source": "NSE",
   "errors": [],
   "ipos": [
+    {
+      "id": "nse-VPFL",
+      "symbol": "VPFL",
+      "name": "Vedant Poly Fabs Limited",
+      "type": "SME",
+      "source": "NSE",
+      "openDate": "2026-11-02",
+      "closeDate": "2026-11-04",
+      "priceLow": 88,
+      "priceHigh": 94,
+      "lotSize": 1200,
+      "syncedAt": "2026-11-03T11:38:53.525Z"
+    },
+    {
+      "id": "nse-HGSINDIALT",
+      "symbol": "HGSINDIALT",
+      "name": "HGS (India) Limited",
+      "type": "SME",
+      "source": "NSE",
+      "openDate": "2026-10-30",
+      "closeDate": "2026-11-03",
+      "priceLow": 114,
+      "priceHigh": 120,
+      "lotSize": 1200,
+      "syncedAt": "2026-11-03T11:38:53.526Z"
+    },
+    {
+      "id": "nse-MAXENGS",
+      "symbol": "MAXENGS",
+      "name": "Maxwell Engineering Solutions Limited",
+      "type": "SME",
+      "source": "NSE",
+      "openDate": "2026-10-30",
+      "closeDate": "2026-11-03",
+      "priceLow": 150,
+      "priceHigh": 158,
+      "lotSize": 800,
+      "syncedAt": "2026-11-03T11:38:53.526Z"
+    },
     {
       "id": "nse-BCSSL",
       "symbol": "BCSSL",

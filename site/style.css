@@ -151,3 +151,4 @@ tr.none-row td { color: var(--muted); }
 .mx.b { background: var(--bhni); color: var(--bg); }
 .mx.n { color: var(--muted); }
 #backupNote { align-items: center; }
+.pill.SME { background: var(--bhni-soft); color: var(--bhni); }

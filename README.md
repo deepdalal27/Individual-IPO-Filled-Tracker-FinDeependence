@@ -8,8 +8,8 @@ and gives IPO-wise reports you can download as **Excel** or **PDF**.
 ## How it works
 
 - **New IPOs arrive automatically.** A GitHub Actions workflow
-  (`.github/workflows/pages.yml`) runs every hour. It pulls current and upcoming mainboard
-  IPOs from NSE (dates, price band, lot size) into `site/ipos.json`, then republishes the site
+  (`.github/workflows/pages.yml`) runs every hour. It pulls current and upcoming mainboard and SME
+  IPOs from NSE (NSE's feed also lists BSE SME issues) (dates, price band, lot size) into `site/ipos.json`, then republishes the site
   on GitHub Pages. You can also run it straight away from **Actions → Update IPOs and publish site → Run workflow**.
 - **Apply tab:** pick the IPO, then click **sHNI**, **bHNI** or **None** for each account. Lots
   default to the category minimum at the upper price band:

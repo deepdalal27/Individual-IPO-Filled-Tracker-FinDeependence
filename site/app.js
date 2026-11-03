@@ -22,8 +22,9 @@
   const lotAmt = (ipo) => (Number(ipo.lotSize) || 0) * (Number(ipo.priceHigh) || 0);
   function range(ipo, cat) {
     const a = lotAmt(ipo); if (!a) return null;
-    if (cat === 'SHNI') { const min = Math.floor(200000 / a) + 1, max = Math.floor(1000000 / a); return max >= min ? { min, max } : null; }
-    if (cat === 'BHNI') return { min: Math.floor(1000000 / a) + 1, max: null };
+    const floor = ipo.type === 'SME' ? 3 : 1; // SME retail is fixed at 2 lots, so HNI needs 3+
+    if (cat === 'SHNI') { const min = Math.max(Math.floor(200000 / a) + 1, floor), max = Math.floor(1000000 / a); return max >= min ? { min, max } : null; }
+    if (cat === 'BHNI') return { min: Math.max(Math.floor(1000000 / a) + 1, floor), max: null };
     return null;
   }
   function calc(ipo, app) {
@@ -81,7 +82,7 @@
     $('#ipoList').innerHTML = !S.loaded.ipos ? '<p class="muted">Loading IPOs…</p>' : list.length ? list.map((i) => {
       const st = status(i), n = appliedCount(i.id);
       return `<button class="ipo-btn ${i.id === sel ? 'sel' : ''}" data-id="${esc(i.id)}">
-        <span class="nm">${esc(i.name)} <span class="pill ${st}">${st}</span></span>
+        <span class="nm">${esc(i.name)} <span class="pill ${st}">${st}</span>${i.type === 'SME' ? ' <span class="pill SME">SME</span>' : ''}</span>
         <span class="sub">${fd(i.openDate)} – ${fd(i.closeDate)}</span>
         <span class="sub">${i.priceHigh ? '₹' + inr(i.priceHigh) : 'Price TBA'} · Lot ${inr(i.lotSize)} · ${n ? n + ' applied' : 'none applied'}</span>
       </button>`; }).join('') : '<p class="muted">No open or upcoming IPOs. Choose "All" to see older ones, or add an IPO in the IPOs tab.</p>';

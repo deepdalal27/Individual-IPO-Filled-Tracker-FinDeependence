@@ -19,13 +19,14 @@ function lotRange(ipo, category) {
   const amt = lotAmount(ipo);
   if (!amt) return null;
   if (category === 'SHNI') {
-    const min = Math.floor(RETAIL_LIMIT / amt) + 1;
+    // SME: retail is fixed at 2 lots, so any HNI bid needs at least 3 lots.
+    const min = Math.max(Math.floor(RETAIL_LIMIT / amt) + 1, ipo.type === 'SME' ? 3 : 1);
     const max = Math.floor(SHNI_LIMIT / amt);
     if (max < min) return null; // one lot already exceeds Rs 10 lakh
     return { min, max };
   }
   if (category === 'BHNI') {
-    return { min: Math.floor(SHNI_LIMIT / amt) + 1, max: null };
+    return { min: Math.max(Math.floor(SHNI_LIMIT / amt) + 1, ipo.type === 'SME' ? 3 : 1), max: null };
   }
   return null;
 }

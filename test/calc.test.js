@@ -35,3 +35,10 @@ test('NSE field parsers', () => {
   assert.strictEqual(parseLot('182 Equity Shares and in multiples thereof'), 182);
 });
 
+
+test('SME needs at least 3 lots for HNI', () => {
+  const sme = { type: 'SME', priceHigh: 94, lotSize: 1200 }; // 1 lot = 1,12,800
+  assert.strictEqual(lotRange(sme, 'SHNI').min, 3);
+  assert.strictEqual(lotRange(sme, 'SHNI').max, 8);
+  assert.strictEqual(lotRange(sme, 'BHNI').min, 9);
+});

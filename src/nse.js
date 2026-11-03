@@ -37,11 +37,11 @@ async function fetchDetail(symbol, series) {
   return {
     openDate: parseDate(period[0]), closeDate: parseDate(period[1]),
     priceLow: price.low, priceHigh: price.high,
-    lotSize: parseLot(info['Bid Lot'] || info['Minimum Order Quantity']),
+    lotSize: parseLot(info['Bid Lot'] || info['Lot Size'] || info['Minimum Order Quantity']),
   };
 }
 
-async function fetchIpos({ includeSme = false } = {}) {
+async function fetchIpos({ includeSme = true } = {}) {
   const errors = [];
   const [current, upcoming] = await Promise.all([
     getJson(`${BASE}/ipo-current-issue`).catch((e) => { errors.push(e.message); return null; }),

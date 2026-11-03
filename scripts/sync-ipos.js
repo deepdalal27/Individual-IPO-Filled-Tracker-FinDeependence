@@ -11,7 +11,7 @@ const FILE = path.join(__dirname, '..', 'site', 'ipos.json');
   const byId = new Map((old.ipos || []).map((i) => [i.id, i]));
   let result;
   try {
-    result = await fetchIpos({ includeSme: process.env.INCLUDE_SME === '1' });
+    result = await fetchIpos({ includeSme: process.env.INCLUDE_SME !== '0' });
   } catch (e) {
     console.error('NSE fetch failed:', e.message);
     process.exitCode = 0; // keep the existing list; try again next run
