@@ -173,136 +173,220 @@
   }
 
   // ---------- Reports ----------
-  function buildReport(f) {
-    const accs = new Map(S.accounts.map((a) => [a.id, a]));
+  // Every IPO × account pair in scope becomes one "cell": sHNI, bHNI or None.
+  // All views (by IPO, by account, matrix, all rows) and the Excel/PDF exports are built from these cells.
+  const CATN = { SHNI: 'sHNI', BHNI: 'bHNI', NONE: 'None' };
+  const filters = () => ({ from: $('#rFrom').value, to: $('#rTo').value, ipo: $('#rIpo').value, acc: $('#rAcc').value, cat: $('#rCat').value, empty: $('#rEmpty').checked });
+  function buildData(f) {
     let ipos = sortedIpos();
     if (f.ipo) ipos = ipos.filter((i) => i.id === f.ipo);
     if (f.from) ipos = ipos.filter((i) => (i.closeDate || i.openDate || '9999') >= f.from);
     if (f.to) ipos = ipos.filter((i) => (i.openDate || '0000') <= f.to);
-    const blocks = [], g = { accounts: 0, shni: 0, bhni: 0, lots: 0, shares: 0, amount: 0 };
-    for (const ipo of ipos) {
-      const rows = [];
-      for (const app of S.apps.values()) {
-        if (app.ipoId !== ipo.id || !app.category || (f.cat && app.category !== f.cat)) continue;
-        const acc = accs.get(app.accountId); if (!acc) continue;
-        const c = calc(ipo, app);
-        rows.push({ order: acc.order || 0, account: acc.name, pan: acc.pan || '', category: CAT[app.category], lots: c.lots, shares: c.shares, price: ipo.priceHigh ?? null, amount: c.amount, remarks: app.remarks || '' });
-      }
-      if (!rows.length) continue;
-      rows.sort((a, b) => a.order - b.order);
-      const t = { accounts: rows.length, shni: 0, bhni: 0, lots: 0, shares: 0, amount: 0 };
-      for (const r of rows) { r.category === 'sHNI' ? t.shni++ : t.bhni++; t.lots += r.lots || 0; t.shares += r.shares || 0; t.amount += r.amount || 0; }
-      for (const k in g) g[k] += t[k];
-      blocks.push({ ipo: { ...ipo, status: status(ipo), lotAmount: lotAmt(ipo) }, rows, totals: t });
+    const applied = (ipoId, accId) => { const a = S.apps.get(appKey(ipoId, accId)); return a && a.category ? a : null; };
+    if (!f.empty && !f.ipo) ipos = ipos.filter((i) => sortedAccounts().some((a) => applied(i.id, a.id)));
+    let accounts = sortedAccounts().filter((a) => a.active !== false || ipos.some((i) => applied(i.id, a.id)));
+    if (f.acc) accounts = accounts.filter((a) => a.id === f.acc);
+    const cells = [];
+    for (const ipo of ipos) for (const acc of accounts) {
+      const app = applied(ipo.id, acc.id);
+      const cat = app ? app.category : 'NONE';
+      const c = app ? calc(ipo, app) : { lots: 0, shares: 0, amount: 0 };
+      cells.push({ ipo, acc, cat, lots: c.lots, shares: c.shares, amount: c.amount, remarks: app?.remarks || '' });
     }
-    return { blocks, grand: g, filters: f };
+    const shown = f.cat ? cells.filter((c) => c.cat === f.cat) : cells;
+    const sum = (list) => {
+      const t = { cells: list.length, shni: 0, bhni: 0, none: 0, lots: 0, shares: 0, amount: 0 };
+      for (const c of list) { if (c.cat === 'SHNI') t.shni++; else if (c.cat === 'BHNI') t.bhni++; else t.none++; t.lots += c.lots || 0; t.shares += c.shares || 0; t.amount += c.amount || 0; }
+      t.applied = t.shni + t.bhni; return t;
+    };
+    const byIpo = ipos.map((ipo) => { const list = shown.filter((c) => c.ipo === ipo); return { ipo: { ...ipo, status: status(ipo), lotAmount: lotAmt(ipo) }, list, t: sum(list) }; });
+    const byAcc = accounts.map((acc) => { const list = shown.filter((c) => c.acc === acc); const ap = list.filter((c) => c.cat !== 'NONE'); return { acc, list, t: sum(list), last: ap[0]?.ipo || null }; });
+    return { f, ipos, accounts, cells, shown, byIpo, byAcc, g: sum(shown) };
   }
-  const filters = () => ({ from: $('#rFrom').value, to: $('#rTo').value, ipo: $('#rIpo').value, cat: $('#rCat').value });
-  ['rFrom', 'rTo', 'rIpo', 'rCat'].forEach((id) => $('#' + id).addEventListener('change', renderReport));
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) + '%' : '–');
+  const pill = (cat) => `<span class="pill ${cat}">${CATN[cat] || cat}</span>`;
+  let rView = store.get('rView') || 'ipo';
+  $$('#rViews button').forEach((b) => b.addEventListener('click', () => { rView = b.dataset.rv; store.set('rView', rView); renderReport(); }));
+  ['rFrom', 'rTo', 'rIpo', 'rAcc', 'rCat', 'rEmpty'].forEach((id) => $('#' + id).addEventListener('change', renderReport));
   $$('[data-range]').forEach((b) => b.addEventListener('click', () => {
     const t = istToday();
     if (b.dataset.range === 'month') { $('#rFrom').value = t.slice(0, 8) + '01'; $('#rTo').value = t; }
+    if (b.dataset.range === 'fy') { const y = Number(t.slice(0, 4)) - (Number(t.slice(5, 7)) < 4 ? 1 : 0); $('#rFrom').value = `${y}-04-01`; $('#rTo').value = t; }
     if (b.dataset.range === 'last30') { $('#rFrom').value = addDays(t, -30); $('#rTo').value = t; }
-    if (b.dataset.range === 'clear') { $('#rFrom').value = ''; $('#rTo').value = ''; $('#rIpo').value = ''; $('#rCat').value = ''; }
+    if (b.dataset.range === 'clear') { ['rFrom', 'rTo', 'rIpo', 'rAcc', 'rCat'].forEach((id) => ($('#' + id).value = '')); }
     renderReport();
   }));
+  // Clicking an IPO or account name in a report drills into it.
+  $('#reportOut').addEventListener('click', (e) => {
+    const a = e.target.closest('[data-go-ipo],[data-go-acc]'); if (!a) return;
+    e.preventDefault();
+    if (a.dataset.goIpo) { $('#rIpo').value = a.dataset.goIpo; rView = 'ipo'; }
+    if (a.dataset.goAcc) { $('#rAcc').value = a.dataset.goAcc; rView = 'acc'; }
+    store.set('rView', rView); renderReport();
+  });
+  const ipoLink = (i) => `<a href="#" class="go" data-go-ipo="${esc(i.id)}">${esc(i.name)}</a>`;
+  const accLink = (a) => `<a href="#" class="go" data-go-acc="${esc(a.id)}">${esc(a.name)}</a>`;
+
   function renderReport() {
-    const cur = $('#rIpo').value;
-    $('#rIpo').innerHTML = '<option value="">All IPOs</option>' + sortedIpos().map((i) => `<option value="${esc(i.id)}">${esc(i.name)}</option>`).join('');
-    $('#rIpo').value = S.ipos.some((i) => i.id === cur) ? cur : '';
-    const r = buildReport(filters()), g = r.grand;
-    $('#reportOut').innerHTML = `
-      <div class="tiles">
-        <div class="fact"><small>IPOs</small><b>${r.blocks.length}</b></div>
-        <div class="fact"><small>Applications</small><b>${g.accounts}</b><span class="hint">${g.shni} sHNI · ${g.bhni} bHNI</span></div>
-        <div class="fact"><small>Total lots</small><b>${inr(g.lots)}</b></div>
-        <div class="fact"><small>Total shares</small><b>${inr(g.shares)}</b></div>
-        <div class="fact"><small>Amount blocked</small><b>${rs(g.amount)}</b><span class="hint">at upper price band</span></div>
-      </div>
-      <h3 class="sec">IPO-wise summary</h3>
-      <div class="tbl"><table>
-        <thead><tr><th>IPO</th><th>Open</th><th>Close</th><th>Status</th><th class="num">Upper price</th><th class="num">Lot</th><th class="num">sHNI</th><th class="num">bHNI</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Amount blocked</th></tr></thead>
-        <tbody>${r.blocks.map((b) => `<tr><td>${esc(b.ipo.name)}</td><td>${fd(b.ipo.openDate)}</td><td>${fd(b.ipo.closeDate)}</td><td><span class="pill ${b.ipo.status}">${b.ipo.status}</span></td><td class="num">${rs(b.ipo.priceHigh)}</td><td class="num">${inr(b.ipo.lotSize)}</td><td class="num">${b.totals.shni}</td><td class="num">${b.totals.bhni}</td><td class="num">${inr(b.totals.lots)}</td><td class="num">${inr(b.totals.shares)}</td><td class="num">${rs(b.totals.amount)}</td></tr>`).join('') || `<tr><td colspan="11" class="muted">${S.loaded.apps ? 'No applications match these filters. Mark categories on the Apply tab first.' : 'Loading…'}</td></tr>`}</tbody>
-        ${r.blocks.length ? `<tfoot><tr class="tot"><td>Grand total</td><td></td><td></td><td></td><td></td><td></td><td class="num">${g.shni}</td><td class="num">${g.bhni}</td><td class="num">${inr(g.lots)}</td><td class="num">${inr(g.shares)}</td><td class="num">${rs(g.amount)}</td></tr></tfoot>` : ''}
-      </table></div>
-      ${r.blocks.length ? '<h3 class="sec">Account-wise detail</h3>' : ''}
-      ${r.blocks.map((b) => `<details class="blk"><summary><span>${esc(b.ipo.name)}</span><span class="muted">${b.totals.accounts} accounts · <span class="num">${rs(b.totals.amount)}</span></span></summary>
-        <div class="tbl"><table><thead><tr><th>Account</th><th>PAN</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Upper price</th><th class="num">Amount</th><th>Remarks</th></tr></thead>
-        <tbody>${b.rows.map((x) => `<tr><td>${esc(x.account)}</td><td style="font-family:var(--mono)">${esc(x.pan)}</td><td><span class="pill ${x.category.toUpperCase()}">${x.category}</span></td><td class="num">${inr(x.lots)}</td><td class="num">${inr(x.shares)}</td><td class="num">${rs(x.price)}</td><td class="num">${rs(x.amount)}</td><td>${esc(x.remarks)}</td></tr>`).join('')}</tbody></table></div></details>`).join('')}`;
+    const keep = (id, opts) => { const cur = $('#' + id).value; $('#' + id).innerHTML = opts; $('#' + id).value = [...$('#' + id).options].some((o) => o.value === cur) ? cur : ''; };
+    keep('rIpo', '<option value="">All IPOs</option>' + sortedIpos().map((i) => `<option value="${esc(i.id)}">${esc(i.name)}</option>`).join(''));
+    keep('rAcc', '<option value="">All accounts</option>' + sortedAccounts().map((a) => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join(''));
+    $$('#rViews button').forEach((b) => b.classList.toggle('on', b.dataset.rv === rView));
+    const d = buildData(filters()), g = d.g;
+    const tiles = `<div class="tiles">
+      <div class="fact"><small>IPOs</small><b>${d.ipos.length}</b></div>
+      <div class="fact"><small>Accounts</small><b>${d.accounts.length}</b></div>
+      <div class="fact shni"><small>sHNI applications</small><b>${g.shni}</b></div>
+      <div class="fact bhni"><small>bHNI applications</small><b>${g.bhni}</b></div>
+      <div class="fact"><small>None (not applied)</small><b>${g.none}</b><span class="hint">${pct(g.applied, g.cells)} of slots applied</span></div>
+      <div class="fact"><small>Amount blocked</small><b>${rs(g.amount)}</b><span class="hint">${inr(g.lots)} lots · ${inr(g.shares)} shares</span></div>
+    </div>`;
+    if (!d.ipos.length) { $('#reportOut').innerHTML = tiles + `<p class="muted">${S.loaded.ipos ? 'No IPOs match these filters. Tick "Include IPOs not applied" or widen the dates.' : 'Loading…'}</p>`; return; }
+    let body = '';
+    if (rView === 'ipo') {
+      body = `<h3 class="sec">IPO-wise · how many accounts applied</h3><div class="tbl"><table>
+        <thead><tr><th>IPO</th><th>Open</th><th>Close</th><th>Status</th><th class="num">Upper price</th><th class="num">Lot</th><th class="num">Applied</th><th class="num">sHNI</th><th class="num">bHNI</th><th class="num">None</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Amount blocked</th></tr></thead>
+        <tbody>${d.byIpo.map((b) => `<tr><td>${ipoLink(b.ipo)}</td><td>${fd(b.ipo.openDate)}</td><td>${fd(b.ipo.closeDate)}</td><td>${pill(b.ipo.status)}</td><td class="num">${rs(b.ipo.priceHigh)}</td><td class="num">${inr(b.ipo.lotSize)}</td><td class="num">${b.t.applied} / ${b.t.cells}</td><td class="num">${b.t.shni}</td><td class="num">${b.t.bhni}</td><td class="num">${b.t.none}</td><td class="num">${inr(b.t.lots)}</td><td class="num">${inr(b.t.shares)}</td><td class="num">${rs(b.t.amount)}</td></tr>`).join('')}</tbody>
+        <tfoot><tr class="tot"><td>Total</td><td></td><td></td><td></td><td></td><td></td><td class="num">${g.applied} / ${g.cells}</td><td class="num">${g.shni}</td><td class="num">${g.bhni}</td><td class="num">${g.none}</td><td class="num">${inr(g.lots)}</td><td class="num">${inr(g.shares)}</td><td class="num">${rs(g.amount)}</td></tr></tfoot></table></div>
+        <h3 class="sec">Accounts in each IPO</h3>
+        ${d.byIpo.map((b) => `<details class="blk" ${d.f.ipo ? 'open' : ''}><summary><span>${esc(b.ipo.name)}</span><span class="muted">${b.t.shni} sHNI · ${b.t.bhni} bHNI · ${b.t.none} None · <span class="num">${rs(b.t.amount)}</span></span></summary>
+          <div class="tbl"><table><thead><tr><th>Account</th><th>PAN</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Amount</th><th>Remarks</th></tr></thead>
+          <tbody>${b.list.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${accLink(c.acc)}</td><td class="mono">${esc(c.acc.pan || '')}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div></details>`).join('')}`;
+    } else if (rView === 'acc') {
+      body = `<h3 class="sec">Account-wise · which IPOs each account applied in</h3><div class="tbl"><table>
+        <thead><tr><th>#</th><th>Account</th><th>PAN</th><th class="num">IPOs applied</th><th class="num">sHNI</th><th class="num">bHNI</th><th class="num">None</th><th class="num">Hit rate</th><th class="num">Amount blocked</th><th>Last applied in</th></tr></thead>
+        <tbody>${d.byAcc.map((b, i) => `<tr><td class="num">${i + 1}</td><td>${accLink(b.acc)}</td><td class="mono">${esc(b.acc.pan || '')}</td><td class="num">${b.t.applied} / ${b.t.cells}</td><td class="num">${b.t.shni}</td><td class="num">${b.t.bhni}</td><td class="num">${b.t.none}</td><td class="num">${pct(b.t.applied, b.t.cells)}</td><td class="num">${rs(b.t.amount)}</td><td>${b.last ? esc(b.last.name) : '–'}</td></tr>`).join('')}</tbody>
+        <tfoot><tr class="tot"><td></td><td>Total</td><td></td><td class="num">${g.applied} / ${g.cells}</td><td class="num">${g.shni}</td><td class="num">${g.bhni}</td><td class="num">${g.none}</td><td class="num">${pct(g.applied, g.cells)}</td><td class="num">${rs(g.amount)}</td><td></td></tr></tfoot></table></div>
+        <h3 class="sec">IPO history of each account</h3>
+        ${d.byAcc.map((b) => `<details class="blk" ${d.f.acc ? 'open' : ''}><summary><span>${esc(b.acc.name)}</span><span class="muted">${b.t.applied} IPOs · ${b.t.shni} sHNI · ${b.t.bhni} bHNI · <span class="num">${rs(b.t.amount)}</span></span></summary>
+          <div class="tbl"><table><thead><tr><th>IPO</th><th>Open</th><th>Close</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Upper price</th><th class="num">Amount</th><th>Remarks</th></tr></thead>
+          <tbody>${b.list.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${ipoLink(c.ipo)}</td><td>${fd(c.ipo.openDate)}</td><td>${fd(c.ipo.closeDate)}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${rs(c.ipo.priceHigh)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div></details>`).join('')}`;
+    } else if (rView === 'matrix') {
+      const cellOf = (ipo, acc) => d.shown.find((c) => c.ipo === ipo && c.acc === acc);
+      const mark = (c) => (!c ? '' : c.cat === 'SHNI' ? '<span class="mx s">S</span>' : c.cat === 'BHNI' ? '<span class="mx b">B</span>' : '<span class="mx n">–</span>');
+      body = `<h3 class="sec">Matrix · S = sHNI, B = bHNI, – = None</h3><div class="tbl matrix"><table>
+        <thead><tr><th class="stick">Account</th>${d.ipos.map((i) => `<th class="rot" title="${esc(i.name)}"><a href="#" class="go" data-go-ipo="${esc(i.id)}">${esc(i.symbol || i.name.split(' ')[0])}</a><div class="muted">${fd(i.openDate).slice(0, 6)}</div></th>`).join('')}<th class="num">S</th><th class="num">B</th><th class="num">–</th></tr></thead>
+        <tbody>${d.byAcc.map((b) => `<tr><td class="stick">${accLink(b.acc)}</td>${d.ipos.map((i) => `<td class="mxc">${mark(cellOf(i, b.acc))}</td>`).join('')}<td class="num">${b.t.shni}</td><td class="num">${b.t.bhni}</td><td class="num">${b.t.none}</td></tr>`).join('')}</tbody>
+        <tfoot>${[['sHNI', 'shni'], ['bHNI', 'bhni'], ['None', 'none']].map(([l, k]) => `<tr class="tot"><td class="stick">${l}</td>${d.byIpo.map((b) => `<td class="num">${b.t[k]}</td>`).join('')}<td class="num">${k === 'shni' ? g.shni : ''}</td><td class="num">${k === 'bhni' ? g.bhni : ''}</td><td class="num">${k === 'none' ? g.none : ''}</td></tr>`).join('')}</tfoot></table></div>`;
+    } else {
+      body = `<h3 class="sec">All rows · every IPO × account (${d.shown.length})</h3><div class="tbl"><table>
+        <thead><tr><th>IPO</th><th>Open</th><th>Close</th><th>Account</th><th>PAN</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Upper price</th><th class="num">Amount</th><th>Remarks</th></tr></thead>
+        <tbody>${d.shown.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${ipoLink(c.ipo)}</td><td>${fd(c.ipo.openDate)}</td><td>${fd(c.ipo.closeDate)}</td><td>${accLink(c.acc)}</td><td class="mono">${esc(c.acc.pan || '')}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${rs(c.ipo.priceHigh)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div>`;
+    }
+    $('#reportOut').innerHTML = tiles + body;
   }
 
   function save(filename, data) {
-    const type = filename.endsWith('.pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    const type = filename.endsWith('.pdf') ? 'application/pdf' : filename.endsWith('.json') ? 'application/json' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type }));
     const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
   const fileStamp = () => istToday();
+  const scopeText = (f) => [f.from && 'From ' + fdx(f.from), f.to && 'To ' + fdx(f.to), f.ipo && 'IPO: ' + (S.ipos.find((i) => i.id === f.ipo)?.name || ''), f.acc && 'Account: ' + (S.accounts.find((a) => a.id === f.acc)?.name || ''), f.cat && 'Category: ' + CATN[f.cat]].filter(Boolean).join('   ');
+
   $('#dlXlsx').addEventListener('click', () => {
     if (!window.XLSX) return toast('Excel library did not load. Reload the page.', true);
-    const r = buildReport(filters()), g = r.grand;
-    const sum = [['IPO', 'Symbol', 'Open', 'Close', 'Status', 'Price band low', 'Upper price', 'Lot size', 'sHNI accounts', 'bHNI accounts', 'Total lots', 'Total shares', 'Amount blocked (Rs)']];
-    for (const b of r.blocks) sum.push([b.ipo.name, b.ipo.symbol || '', fdx(b.ipo.openDate), fdx(b.ipo.closeDate), b.ipo.status, b.ipo.priceLow ?? '', b.ipo.priceHigh ?? '', b.ipo.lotSize ?? '', b.totals.shni, b.totals.bhni, b.totals.lots, b.totals.shares, b.totals.amount]);
-    sum.push(['GRAND TOTAL', '', '', '', '', '', '', '', g.shni, g.bhni, g.lots, g.shares, g.amount]);
-    const det = [['IPO', 'Open', 'Close', 'Account', 'PAN', 'Category', 'Lots', 'Shares', 'Upper price', 'Amount blocked (Rs)', 'Remarks']];
-    for (const b of r.blocks) {
-      for (const x of b.rows) det.push([b.ipo.name, fdx(b.ipo.openDate), fdx(b.ipo.closeDate), x.account, x.pan, x.category, x.lots, x.shares, x.price, x.amount, x.remarks]);
-      det.push([`${b.ipo.name} – Total`, '', '', `${b.totals.accounts} accounts`, '', `${b.totals.shni} sHNI / ${b.totals.bhni} bHNI`, b.totals.lots, b.totals.shares, '', b.totals.amount, '']);
-    }
+    const d = buildData(filters()), g = d.g;
     const wb = XLSX.utils.book_new();
-    const s1 = XLSX.utils.aoa_to_sheet(sum); s1['!cols'] = [40, 12, 13, 13, 10, 12, 11, 9, 12, 12, 11, 13, 20].map((w) => ({ wch: w }));
-    const s2 = XLSX.utils.aoa_to_sheet(det); s2['!cols'] = [36, 13, 13, 26, 13, 18, 8, 10, 11, 20, 24].map((w) => ({ wch: w }));
-    for (const [sh, col] of [[s1, 12], [s2, 9]]) { const rg = XLSX.utils.decode_range(sh['!ref']); for (let R = 1; R <= rg.e.r; R++) { const c = sh[XLSX.utils.encode_cell({ r: R, c: col })]; if (c && typeof c.v === 'number') c.z = '#,##,##0'; } }
-    XLSX.utils.book_append_sheet(wb, s1, 'IPO Summary');
-    XLSX.utils.book_append_sheet(wb, s2, 'Account Detail');
+    const add = (name, rows, widths, moneyCols = [], filter = true) => {
+      const sh = XLSX.utils.aoa_to_sheet(rows);
+      sh['!cols'] = widths.map((w) => ({ wch: w }));
+      const rg = XLSX.utils.decode_range(sh['!ref']);
+      for (let R = 1; R <= rg.e.r; R++) for (const C of moneyCols) { const c = sh[XLSX.utils.encode_cell({ r: R, c: C })]; if (c && typeof c.v === 'number') c.z = '#,##,##0'; }
+      if (filter && rows.length > 1) sh['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length - 1, c: rows[0].length - 1 } }) };
+      XLSX.utils.book_append_sheet(wb, sh, name);
+    };
+    add('Overview', [
+      ['FinDeependence · HNI IPO Ledger', ''], ['Generated (IST)', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })], ['Filters', scopeText(d.f) || 'None'],
+      ['IPOs', d.ipos.length], ['Accounts', d.accounts.length], ['sHNI applications', g.shni], ['bHNI applications', g.bhni], ['None (not applied)', g.none],
+      ['Total lots', g.lots], ['Total shares', g.shares], ['Amount blocked (Rs, upper band)', g.amount],
+    ], [34, 50], [1], false);
+    add('IPO-wise', [['IPO', 'Symbol', 'Type', 'Open', 'Close', 'Status', 'Price low', 'Upper price', 'Lot size', '1 lot (Rs)', 'Accounts', 'Applied', 'sHNI', 'bHNI', 'None', 'Total lots', 'Total shares', 'Amount blocked (Rs)'],
+      ...d.byIpo.map((b) => [b.ipo.name, b.ipo.symbol || '', b.ipo.type || 'Mainboard', fdx(b.ipo.openDate), fdx(b.ipo.closeDate), b.ipo.status, b.ipo.priceLow ?? '', b.ipo.priceHigh ?? '', b.ipo.lotSize ?? '', b.ipo.lotAmount || '', b.t.cells, b.t.applied, b.t.shni, b.t.bhni, b.t.none, b.t.lots, b.t.shares, b.t.amount]),
+      ['TOTAL', '', '', '', '', '', '', '', '', '', g.cells, g.applied, g.shni, g.bhni, g.none, g.lots, g.shares, g.amount]],
+      [40, 12, 11, 12, 12, 10, 10, 11, 9, 11, 9, 9, 7, 7, 7, 10, 12, 18], [9, 17]);
+    add('Account-wise', [['#', 'Account', 'PAN', 'IPOs in scope', 'IPOs applied', 'sHNI', 'bHNI', 'None', 'Hit rate %', 'Amount blocked (Rs)', 'Last applied in'],
+      ...d.byAcc.map((b, i) => [i + 1, b.acc.name, b.acc.pan || '', b.t.cells, b.t.applied, b.t.shni, b.t.bhni, b.t.none, b.t.cells ? Math.round((b.t.applied / b.t.cells) * 100) : 0, b.t.amount, b.last?.name || '']),
+      ['', 'TOTAL', '', g.cells, g.applied, g.shni, g.bhni, g.none, g.cells ? Math.round((g.applied / g.cells) * 100) : 0, g.amount, '']],
+      [5, 30, 13, 12, 12, 7, 7, 7, 10, 18, 36], [9]);
+    const cellOf = (ipo, acc) => d.shown.find((c) => c.ipo === ipo && c.acc === acc);
+    add('Matrix', [['Account', ...d.ipos.map((i) => `${i.name} (${fdx(i.openDate)})`), 'sHNI', 'bHNI', 'None'],
+      ...d.byAcc.map((b) => [b.acc.name, ...d.ipos.map((i) => { const c = cellOf(i, b.acc); return !c ? '' : CATN[c.cat]; }), b.t.shni, b.t.bhni, b.t.none]),
+      ['sHNI', ...d.byIpo.map((b) => b.t.shni), g.shni, '', ''], ['bHNI', ...d.byIpo.map((b) => b.t.bhni), '', g.bhni, ''], ['None', ...d.byIpo.map((b) => b.t.none), '', '', g.none]],
+      [30, ...d.ipos.map(() => 16), 7, 7, 7], [], false);
+    add('All rows', [['IPO', 'Symbol', 'Open', 'Close', 'Status', 'Account', 'PAN', 'Category', 'Applied', 'Lots', 'Shares', 'Upper price', 'Amount blocked (Rs)', 'Remarks'],
+      ...d.shown.map((c) => [c.ipo.name, c.ipo.symbol || '', fdx(c.ipo.openDate), fdx(c.ipo.closeDate), status(c.ipo), c.acc.name, c.acc.pan || '', CATN[c.cat], c.cat === 'NONE' ? 'No' : 'Yes', c.lots || 0, c.shares || 0, c.ipo.priceHigh ?? '', c.amount || 0, c.remarks])],
+      [36, 12, 12, 12, 10, 28, 13, 9, 8, 7, 9, 11, 18, 24], [12]);
     save(`IPO-Report-${fileStamp()}.xlsx`, XLSX.write(wb, { bookType: 'xlsx', type: 'array' }));
   });
+
   $('#dlPdf').addEventListener('click', () => {
     const J = window.jspdf?.jsPDF;
     if (!J) return toast('PDF library did not load. Reload the page.', true);
-    const r = buildReport(filters()), g = r.grand, f = r.filters;
+    const d = buildData(filters()), g = d.g;
     const n = (v) => (v == null ? '-' : Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 }));
     const doc = new J({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-    const W = doc.internal.pageSize.getWidth();
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
     const head = { fillColor: [14, 39, 64], textColor: 255, fontStyle: 'bold' };
-    doc.setFillColor(14, 39, 64); doc.rect(0, 0, W, 30, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(127, 211, 214); doc.text('FINDEEPENDENCE', 32, 19); doc.setTextColor(255); doc.setFont('helvetica', 'normal'); doc.text('CA Deep Dalal  |  Chartered Accountant  |  Fund Manager', W - 32, 19, { align: 'right' });
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(14, 39, 64);
-    doc.text('IPO Application Report - sHNI / bHNI', 32, 50);
+    const foot = { fillColor: [234, 227, 210], textColor: 20, fontStyle: 'bold' };
+    const table = (opts, rightFrom) => doc.autoTable({ margin: { left: 32, right: 32, top: 40 }, headStyles: head, footStyles: foot, styles: { fontSize: 8, cellPadding: 3.5 }, showFoot: 'lastPage',
+      didParseCell: (x) => { if (rightFrom != null && x.column.index >= rightFrom && x.column.index < (opts.rightTo ?? 99)) x.cell.styles.halign = 'right'; }, ...opts });
+    const heading = (text, sub) => {
+      let y = (doc.lastAutoTable?.finalY || 70) + 26;
+      if (y > H - 100) { doc.addPage(); y = 50; }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(14, 39, 64); doc.text(text, 32, y);
+      if (sub) { doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90); doc.text(sub, 32, y + 12); }
+      return y + (sub ? 18 : 8);
+    };
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(14, 39, 64); doc.text('IPO Application Report - sHNI / bHNI', 32, 50);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90);
-    const scope = [f.from && 'From ' + fdx(f.from), f.to && 'To ' + fdx(f.to), f.cat && 'Category: ' + CAT[f.cat], f.ipo && 'IPO: ' + (S.ipos.find((i) => i.id === f.ipo)?.name || '')].filter(Boolean).join('   ');
-    doc.text(`Generated ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST${scope ? '   |   ' + scope : ''}   |   Amounts in Rs at upper price band`, 32, 64);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(20);
-    doc.text(`IPOs: ${r.blocks.length}    Applications: ${g.accounts} (sHNI ${g.shni} / bHNI ${g.bhni})    Lots: ${n(g.lots)}    Shares: ${n(g.shares)}    Total blocked: Rs ${n(g.amount)}`, 32, 82);
-    const R = { halign: 'right' };
-    doc.autoTable({
-      startY: 94, margin: { left: 32, right: 32 }, headStyles: head, styles: { fontSize: 8.5, cellPadding: 4 },
-      head: [['IPO', 'Open', 'Close', 'Status', 'Upper price', 'Lot', 'sHNI', 'bHNI', 'Lots', 'Shares', 'Amount blocked']],
-      body: r.blocks.map((b) => [b.ipo.name, fdx(b.ipo.openDate), fdx(b.ipo.closeDate), b.ipo.status, n(b.ipo.priceHigh), n(b.ipo.lotSize), b.totals.shni, b.totals.bhni, n(b.totals.lots), n(b.totals.shares), n(b.totals.amount)]),
-      foot: [['GRAND TOTAL', '', '', '', '', '', g.shni, g.bhni, n(g.lots), n(g.shares), n(g.amount)]],
-      footStyles: { fillColor: [234, 227, 210], textColor: 20, fontStyle: 'bold' },
-      columnStyles: { 4: R, 5: R, 6: R, 7: R, 8: R, 9: R, 10: R }, showFoot: 'lastPage',
-      didParseCell: (d) => { if (d.column.index >= 4) d.cell.styles.halign = 'right'; },
-    });
-    for (const b of r.blocks) {
-      let y = doc.lastAutoTable.finalY + 24;
-      if (y > doc.internal.pageSize.getHeight() - 90) { doc.addPage(); y = 40; }
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(14, 39, 64);
-      doc.text(`${b.ipo.name}${b.ipo.symbol ? ' (' + b.ipo.symbol + ')' : ''}`, 32, y);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90);
-      doc.text(`${fdx(b.ipo.openDate)} to ${fdx(b.ipo.closeDate)}  |  Price band Rs ${n(b.ipo.priceLow || b.ipo.priceHigh)} - ${n(b.ipo.priceHigh)}  |  Lot ${n(b.ipo.lotSize)} shares  |  1 lot = Rs ${n(b.ipo.lotAmount)}`, 32, y + 13);
-      doc.autoTable({
-        startY: y + 20, margin: { left: 32, right: 32 }, headStyles: head, styles: { fontSize: 8.5, cellPadding: 4 },
-        head: [['#', 'Account', 'PAN', 'Category', 'Lots', 'Shares', 'Upper price', 'Amount blocked', 'Remarks']],
-        body: b.rows.map((x, i) => [i + 1, x.account, x.pan, x.category, n(x.lots), n(x.shares), n(x.price), n(x.amount), x.remarks]),
-        foot: [['', `Total (${b.totals.accounts} accounts)`, '', `${b.totals.shni} sHNI / ${b.totals.bhni} bHNI`, n(b.totals.lots), n(b.totals.shares), '', n(b.totals.amount), '']],
-        footStyles: { fillColor: [234, 227, 210], textColor: 20, fontStyle: 'bold' },
-        columnStyles: { 0: R, 4: R, 5: R, 6: R, 7: R }, showFoot: 'lastPage',
-        didParseCell: (d) => { if ([0, 4, 5, 6, 7].includes(d.column.index)) d.cell.styles.halign = 'right'; },
-      });
+    const sc = scopeText(d.f);
+    doc.text(`Generated ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST${sc ? '   |   ' + sc : ''}   |   Amounts in Rs at upper price band`, 32, 64);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(20);
+    doc.text(`IPOs ${d.ipos.length}   Accounts ${d.accounts.length}   sHNI ${g.shni}   bHNI ${g.bhni}   None ${g.none}   Lots ${n(g.lots)}   Shares ${n(g.shares)}   Blocked Rs ${n(g.amount)}`, 32, 82);
+    doc.lastAutoTable = { finalY: 84 };
+    let y = heading('IPO-wise summary');
+    table({ startY: y, head: [['IPO', 'Open', 'Close', 'Status', 'Upper price', 'Lot', 'Applied', 'sHNI', 'bHNI', 'None', 'Lots', 'Shares', 'Amount blocked']],
+      body: d.byIpo.map((b) => [b.ipo.name, fdx(b.ipo.openDate), fdx(b.ipo.closeDate), b.ipo.status, n(b.ipo.priceHigh), n(b.ipo.lotSize), `${b.t.applied}/${b.t.cells}`, b.t.shni, b.t.bhni, b.t.none, n(b.t.lots), n(b.t.shares), n(b.t.amount)]),
+      foot: [['TOTAL', '', '', '', '', '', `${g.applied}/${g.cells}`, g.shni, g.bhni, g.none, n(g.lots), n(g.shares), n(g.amount)]] }, 4);
+    y = heading('Account-wise summary');
+    table({ startY: y, head: [['#', 'Account', 'PAN', 'IPOs applied', 'sHNI', 'bHNI', 'None', 'Hit rate', 'Amount blocked', 'Last applied in']],
+      body: d.byAcc.map((b, i) => [i + 1, b.acc.name, b.acc.pan || '', `${b.t.applied}/${b.t.cells}`, b.t.shni, b.t.bhni, b.t.none, pct(b.t.applied, b.t.cells), n(b.t.amount), b.last?.name || '-']),
+      foot: [['', 'TOTAL', '', `${g.applied}/${g.cells}`, g.shni, g.bhni, g.none, pct(g.applied, g.cells), n(g.amount), '']],
+      rightTo: 9 }, 3);
+    // Matrix in chunks of 10 IPOs so it fits the page width.
+    const cellOf = (ipo, acc) => d.shown.find((c) => c.ipo === ipo && c.acc === acc);
+    for (let k = 0; k < d.ipos.length; k += 10) {
+      const part = d.ipos.slice(k, k + 10);
+      y = heading(`Matrix${d.ipos.length > 10 ? ` (IPOs ${k + 1}-${k + part.length})` : ''}`, 'S = sHNI   B = bHNI   - = None');
+      table({ startY: y, head: [['Account', ...part.map((i) => (i.symbol || i.name).slice(0, 12))]],
+        body: d.byAcc.map((b) => [b.acc.name, ...part.map((i) => { const c = cellOf(i, b.acc); return !c ? '' : c.cat === 'SHNI' ? 'S' : c.cat === 'BHNI' ? 'B' : '-'; })]),
+        foot: [['sHNI / bHNI / None', ...part.map((i) => { const b = d.byIpo.find((x) => x.ipo.id === i.id); return `${b.t.shni}/${b.t.bhni}/${b.t.none}`; })]],
+        didParseCell: (x) => { if (x.column.index > 0) x.cell.styles.halign = 'center'; if (x.section === 'body' && x.cell.raw === 'S') x.cell.styles.textColor = [44, 143, 147]; if (x.section === 'body' && x.cell.raw === 'B') x.cell.styles.textColor = [29, 95, 168]; } });
     }
-    if (!r.blocks.length) { doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text('No applications found for the selected filters.', 32, doc.lastAutoTable.finalY + 24); }
+    for (const b of d.byIpo) {
+      const ap = b.list.filter((c) => c.cat !== 'NONE'), no = b.list.filter((c) => c.cat === 'NONE');
+      y = heading(`${b.ipo.name}${b.ipo.symbol ? ' (' + b.ipo.symbol + ')' : ''}`, `${fdx(b.ipo.openDate)} to ${fdx(b.ipo.closeDate)}  |  Price band Rs ${n(b.ipo.priceLow || b.ipo.priceHigh)} - ${n(b.ipo.priceHigh)}  |  Lot ${n(b.ipo.lotSize)}  |  sHNI ${b.t.shni}  bHNI ${b.t.bhni}  None ${b.t.none}`);
+      table({ startY: y, head: [['#', 'Account', 'PAN', 'Category', 'Lots', 'Shares', 'Upper price', 'Amount blocked', 'Remarks']],
+        body: ap.length ? ap.map((c, i) => [i + 1, c.acc.name, c.acc.pan || '', CATN[c.cat], n(c.lots), n(c.shares), n(c.ipo.priceHigh), n(c.amount), c.remarks]) : [['', 'No applications', '', '', '', '', '', '', '']],
+        foot: [['', `Applied ${b.t.applied} accounts`, '', `${b.t.shni} S / ${b.t.bhni} B`, n(b.t.lots), n(b.t.shares), '', n(b.t.amount), '']],
+        didParseCell: (x) => { if ([0, 4, 5, 6, 7].includes(x.column.index)) x.cell.styles.halign = 'right'; } });
+      if (no.length) {
+        let yy = doc.lastAutoTable.finalY + 12; if (yy > H - 50) { doc.addPage(); yy = 50; }
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(90);
+        const lines = doc.splitTextToSize(`None (${no.length}): ${no.map((c) => c.acc.name).join(', ')}`, W - 64);
+        doc.text(lines, 32, yy); doc.lastAutoTable.finalY = yy + lines.length * 10;
+      }
+    }
     const pages = doc.getNumberOfPages();
-    for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140); doc.text('FinDeependence', 32, doc.internal.pageSize.getHeight() - 16); doc.text(`Page ${i} of ${pages}`, W - 32, doc.internal.pageSize.getHeight() - 16, { align: 'right' }); }
+    for (let i = 1; i <= pages; i++) {
+      doc.setPage(i);
+      doc.setFillColor(14, 39, 64); doc.rect(0, 0, W, 28, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(127, 211, 214); doc.text('FINDEEPENDENCE', 32, 18);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(255); doc.text('CA Deep Dalal  |  Chartered Accountant  |  Fund Manager', W - 32, 18, { align: 'right' });
+      doc.setFontSize(8); doc.setTextColor(140); doc.text('FinDeependence · HNI IPO Ledger', 32, H - 16); doc.text(`Page ${i} of ${pages}`, W - 32, H - 16, { align: 'right' });
+    }
     save(`IPO-Report-${fileStamp()}.pdf`, doc.output('arraybuffer'));
   });
 
@@ -329,7 +413,7 @@
   });
   function renderIpos() {
     const ls = S.feed?.updatedAt || S.ipos.map((i) => i.syncedAt).filter(Boolean).sort().pop();
-    $('#ipoInfo').textContent = `Mainboard IPOs from NSE, updated automatically every 3 hours${ls ? ` (last NSE update ${new Date(ls).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST)` : ''}. Add or correct any IPO here.`;
+    $('#ipoInfo').textContent = `New mainboard IPOs arrive from NSE automatically every hour, with dates, price band and lot size${ls ? ` (last NSE update ${new Date(ls).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST)` : ''}. You only need to add an IPO here if it is missing.`;
     const list = sortedIpos();
     $('#ipoTable').innerHTML = `<thead><tr><th>Company</th><th>Symbol</th><th>Type</th><th>Open</th><th>Close</th><th>Status</th><th class="num">Price band</th><th class="num">Lot</th><th class="num">sHNI min</th><th class="num">bHNI min</th><th>Source</th><th></th></tr></thead><tbody>` +
       (list.length ? list.map((i) => { const st = status(i), a = lotAmt(i), rS = range(i, 'SHNI'), rB = range(i, 'BHNI'); return `<tr>
@@ -395,10 +479,12 @@
 
   // ---------- storage (this browser) + IPO feed (GitHub Actions → ipos.json) ----------
   const LS_KEY = 'findeependence-ipo-ledger-v1';
-  let local = { accounts: {}, apps: {}, ipos: {} };
+  let local = { accounts: {}, apps: {}, ipos: {}, meta: {} };
   let remote = {};
   let lsOk = true;
-  function persist() {
+  function persist(isBackup) {
+    local.meta = local.meta || {};
+    if (isBackup) local.meta.lastBackup = new Date().toISOString(); else local.meta.lastChange = new Date().toISOString();
     try { localStorage.setItem(LS_KEY, JSON.stringify(local)); }
     catch { lsOk = false; showStatus('This browser is not letting the app save data (private window or blocked storage). Changes will be lost when you close the tab.'); }
   }
@@ -408,7 +494,16 @@
     const ipos = { ...remote };
     for (const [id, v] of Object.entries(local.ipos)) { if (v.__deleted) delete ipos[id]; else ipos[id] = { id, ...v }; }
     S.ipos = Object.values(ipos);
+    backupNote();
     schedule();
+  }
+  // Remind to back up when there are changes newer than the last backup (and it's been 7+ days or never).
+  function backupNote() {
+    const m = local.meta || {}, hasData = Object.keys(local.apps).length > 0;
+    const stale = !m.lastBackup || (Date.now() - new Date(m.lastBackup)) > 7 * 864e5;
+    const show = hasData && m.lastChange && (!m.lastBackup || m.lastChange > m.lastBackup) && stale;
+    $('#backupNote').hidden = !show;
+    if (show) $('#backupText').textContent = m.lastBackup ? `Last backup was ${new Date(m.lastBackup).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}. Download a fresh backup so your IPO history is safe.` : 'Your IPO history is saved only in this browser. Download a backup so it is safe.';
   }
   const ref = (c, id) => ({
     async set(v) { local[c][id] = JSON.parse(JSON.stringify(v)); persist(); refresh(); },
@@ -423,7 +518,7 @@
   }
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (raw) { const v = JSON.parse(raw); local = { accounts: v.accounts || {}, apps: v.apps || {}, ipos: v.ipos || {} }; }
+    if (raw) { const v = JSON.parse(raw); local = { accounts: v.accounts || {}, apps: v.apps || {}, ipos: v.ipos || {}, meta: v.meta || {} }; }
     else { seedAccounts(); persist(); }
   } catch { lsOk = false; seedAccounts(); showStatus('This browser is not letting the app save data (private window or blocked storage). Changes will be lost when you close the tab.'); }
   S.loaded.accounts = true; S.loaded.apps = true;
@@ -440,9 +535,15 @@
     .finally(() => { S.loaded.ipos = true; refresh(); });
 
   // ---------- backup / restore ----------
-  $('#backupBtn').addEventListener('click', () => {
+  function doBackup() {
+    persist(true);
     save(`FinDeependence-IPO-backup-${istToday()}.json`, new Blob([JSON.stringify({ app: 'findeependence-ipo-ledger', version: 1, savedAt: new Date().toISOString(), ...local }, null, 2)], { type: 'application/json' }));
-  });
+    backupNote(); toast('Backup downloaded');
+  }
+  $('#backupBtn').addEventListener('click', doBackup);
+  $('#backupNow').addEventListener('click', doBackup);
+  // Ask the browser not to clear this site's storage on its own.
+  try { navigator.storage?.persist?.(); } catch {}
   $('#restoreBtn').addEventListener('click', () => $('#restoreFile').click());
   $('#restoreBtn').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#restoreFile').click(); } });
   $('#restoreFile').addEventListener('change', async (e) => {
@@ -450,8 +551,8 @@
     try {
       const v = JSON.parse(await f.text());
       if (v.app !== 'findeependence-ipo-ledger' || !v.accounts) throw new Error('bad');
-      local = { accounts: v.accounts || {}, apps: v.apps || {}, ipos: v.ipos || {} };
-      persist(); refresh(); toast('Backup restored');
+      local = { accounts: v.accounts || {}, apps: v.apps || {}, ipos: v.ipos || {}, meta: v.meta || {} };
+      persist(true); refresh(); toast('Backup restored');
     } catch { toast('That file is not a FinDeependence IPO backup', true); }
   });
 })();

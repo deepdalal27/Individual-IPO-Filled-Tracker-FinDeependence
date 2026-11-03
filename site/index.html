@@ -24,6 +24,7 @@
 
 <main class="wrap">
   <div id="status" class="notice" hidden></div>
+  <div id="backupNote" class="notice row" hidden><span class="grow" id="backupText"></span><button class="primary" id="backupNow">Download backup</button></div>
 
   <section class="view" id="v-apply">
     <div class="apply">
@@ -43,22 +44,33 @@
 
   <section class="view" id="v-report" hidden>
     <div class="panel">
-      <div class="filters">
-        <label>From <input type="date" id="rFrom"></label>
-        <label>To <input type="date" id="rTo"></label>
-        <label>IPO <select id="rIpo"><option value="">All IPOs</option></select></label>
-        <label>Category <select id="rCat"><option value="">sHNI + bHNI</option><option value="SHNI">sHNI only</option><option value="BHNI">bHNI only</option></select></label>
-        <div class="row">
-          <button data-range="month">This month</button>
-          <button data-range="last30">Last 30 days</button>
-          <button data-range="clear">Clear</button>
-        </div>
-        <div class="grow"></div>
+      <div class="panel-head">
+        <div><h2>Reports</h2><p class="muted">Every IPO and every account, with sHNI, bHNI and None counts. Click an IPO or account name to see only that IPO or account.</p></div>
         <div class="row">
           <button class="primary" id="dlXlsx">Download Excel</button>
           <button class="primary" id="dlPdf">Download PDF</button>
         </div>
       </div>
+      <div class="filters">
+        <label>From <input type="date" id="rFrom"></label>
+        <label>To <input type="date" id="rTo"></label>
+        <label>IPO <select id="rIpo"><option value="">All IPOs</option></select></label>
+        <label>Account <select id="rAcc"><option value="">All accounts</option></select></label>
+        <label>Category <select id="rCat"><option value="">sHNI + bHNI + None</option><option value="SHNI">sHNI only</option><option value="BHNI">bHNI only</option><option value="NONE">None only</option></select></label>
+        <label class="check"><input type="checkbox" id="rEmpty"> Include IPOs not applied</label>
+        <div class="row">
+          <button data-range="month">This month</button>
+          <button data-range="last30">Last 30 days</button>
+          <button data-range="fy">This FY</button>
+          <button data-range="clear">Clear</button>
+        </div>
+      </div>
+      <nav class="tabs sub" id="rViews" aria-label="Report view">
+        <button data-rv="ipo" class="on">By IPO</button>
+        <button data-rv="acc">By account</button>
+        <button data-rv="matrix">Matrix</button>
+        <button data-rv="rows">All rows</button>
+      </nav>
       <div id="reportOut"></div>
     </div>
   </section>
@@ -67,7 +79,7 @@
     <div class="panel">
       <div class="panel-head">
         <div><h2>IPOs</h2><p class="muted" id="ipoInfo">Mainboard IPOs from NSE with dates, price band and lot size. Add or correct any IPO here.</p></div>
-        <button class="primary" id="addIpo">Add IPO</button>
+        <button id="addIpo">Add a missing IPO</button>
       </div>
       <form class="form" id="ipoForm" hidden>
         <input type="hidden" id="fId">

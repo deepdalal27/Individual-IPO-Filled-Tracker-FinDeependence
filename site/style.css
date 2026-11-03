@@ -130,3 +130,24 @@ details.blk .tbl { border: none; border-top: 1px solid var(--line); border-radiu
 .byline { font: 700 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: center; padding-block: 18px 28px; }
 .fakebtn { display: inline-block; cursor: pointer; border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 7px 12px; }
 .fakebtn:hover { border-color: var(--muted); }
+
+nav.tabs.sub { background: var(--surface-2); margin-bottom: 4px; width: fit-content; max-width: 100%; }
+nav.tabs.sub button { color: var(--muted); }
+nav.tabs.sub button.on { background: var(--navy); color: #fff; }
+.filters label.check { flex-direction: row; align-items: center; gap: 6px; padding-bottom: 8px; }
+a.go { color: inherit; text-decoration: none; border-bottom: 1px dashed var(--muted); }
+a.go:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.mono { font-family: var(--mono); }
+tr.none-row td { color: var(--muted); }
+.pill.NONE { background: var(--closed-soft); color: var(--muted); }
+.matrix th.rot { text-align: center; font-size: 10px; min-width: 64px; }
+.matrix th.rot a { border: none; }
+.matrix th.rot .muted { font-weight: 500; letter-spacing: 0; text-transform: none; }
+.matrix td.mxc { text-align: center; }
+.matrix .stick { position: sticky; left: 0; background: var(--surface); z-index: 1; }
+.matrix thead .stick, .matrix tr.tot .stick { background: var(--surface-2); }
+.mx { display: inline-block; width: 22px; height: 22px; line-height: 22px; border-radius: 5px; font: 700 11px/22px var(--mono); }
+.mx.s { background: var(--shni); color: var(--bg); }
+.mx.b { background: var(--bhni); color: var(--bg); }
+.mx.n { color: var(--muted); }
+#backupNote { align-items: center; }
