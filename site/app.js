@@ -938,9 +938,12 @@
           <p class="muted">Registrar: <b>${esc(ipo.registrar || 'not listed')}</b> · Allotment expected <b>${fd(ad)}</b>${before ? ' (results are usually out by the evening)' : ''}</p></div>
         <div class="row">
           <a class="btn" href="${esc(reg.url)}" target="fd-registrar" rel="noopener">Open ${esc(reg.name.split(' (')[0])} ↗</a>
-          <button class="primary" id="walkStart" ${rows.length ? '' : 'disabled'}>Check all accounts</button>
+          ${autoReg(ipo) && bridge ? `<button class="primary" id="autoStart" ${rows.length && !autoRun ? '' : 'disabled'}>Check all automatically</button><button id="walkStart" ${rows.length ? '' : 'disabled'}>Check one by one</button>` : `<button class="primary" id="walkStart" ${rows.length ? '' : 'disabled'}>Check all accounts</button>`}
         </div>
       </div>
+      ${autoReg(ipo) ? (bridge
+        ? `<p class="notice ok">⚡ <b>Fully automatic for this IPO.</b> Bigshare's lookup has no CAPTCHA, so the app checks every pending account by itself once results are out (${fd(ad)}), and again every 30 minutes while the app is open. <label class="inl"><input type="checkbox" id="autoToggle" ${autoOn() ? 'checked' : ''}> Check automatically</label></p>`
+        : `<p class="notice">⚡ This IPO's registrar (Bigshare) can be checked <b>fully automatically</b>. Install the FinDeependence script (Option 2 below, version 2), then reload this page.</p>`) : ''}
       ${reg.known ? '' : `<p class="notice">No allotment link is saved for this registrar, so the BSE allotment page is used. You can paste the registrar's link in the IPOs tab (Edit → Allotment link).</p>`}
       <div class="tiles">
         <div class="fact"><small>Applied</small><b>${t.applied}</b></div>
@@ -959,12 +962,13 @@
             <p class="muted">Then click <b>Check allotment</b> here, and on the registrar page click the bookmark once. It picks the IPO, chooses Application No. (or PAN), fills the number and puts the cursor in the CAPTCHA box. In <b>Check all accounts</b>, the registrar tab updates for each next account. Click the bookmark again if the page reloads.</p>
           </div>
           <div class="opt">
-            <span class="lbl">Option 2 · Fully automatic (Chrome / Edge / Firefox with Tampermonkey)</span>
-            <p>Install the free <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Tampermonkey</a> extension, then <a href="fd-allotment.user.js" target="_blank" rel="noopener"><b>install the FinDeependence auto-fill script</b></a> and click Install. Registrar pages opened from here then fill themselves, with no click needed.</p>
+            <span class="lbl">Option 2 · Recommended (Chrome / Edge / Firefox with Tampermonkey)</span>
+            <p>Install the free <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Tampermonkey</a> extension, then <a href="fd-allotment.user.js" target="_blank" rel="noopener"><b>install the FinDeependence auto-fill script</b></a> and click Install. Registrar pages opened from here then fill themselves, with no click needed, and <b>Bigshare IPOs are checked fully automatically</b> inside your browser. ${bridge ? '<span class="pill AL-ALLOTTED">Script active</span>' : '<span class="pill AL-PENDING">Not detected</span>'}</p>
           </div>
           <p class="muted small">The IPO name and number travel in the page address after "#", which browsers never send to the registrar's server. You still type the CAPTCHA and press Submit; that part is deliberately left to you. If a registrar changes its page and something isn't filled, the number is also copied, so you can paste it.</p>
         </div>
       </details>
+      <div id="autoCard">${autoCardHtml()}</div>
       <div id="walkCard"></div>
       <div class="tbl"><table>
         <thead><tr><th>#</th><th>Account</th><th>Application no.</th><th></th><th>Allotment result</th><th class="num">Shares allotted</th></tr></thead>
@@ -974,10 +978,10 @@
             <td class="num">${i + 1}</td>
             <td class="wrap">${esc(x.acc.name)}<div class="muted mono" style="font-size:11px">${pill(x.app.category)} ${esc(x.acc.pan || '')}</div></td>
             <td class="mono">${esc(x.app.appNo) || '<span class="muted">not entered</span>'}</td>
-            <td><button class="chk">Check allotment ↗</button></td>
+            <td><button class="chk">${autoReg(ipo) && bridge ? 'Check allotment' : 'Check allotment ↗'}</button></td>
             <td><div class="seg">
               <button data-al="ALLOTTED" class="${st === 'ALLOTTED' ? 'on' : ''}">Allotted</button><button data-al="NOT" class="${st === 'NOT' ? 'on' : ''}">Not allotted</button><button data-al="PENDING" class="${st === 'PENDING' ? 'on' : ''}" title="Pending: clear the result">Pending</button>
-            </div>${x.app.allot?.checkedAt ? `<div class="muted" style="font-size:11px;margin-top:3px">Recorded ${new Date(x.app.allot.checkedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>` : ''}</td>
+            </div>${x.app.allot?.checkedAt ? `<div class="muted" style="font-size:11px;margin-top:3px">${x.app.allot.source ? '⚡ Auto' : 'Recorded'} ${new Date(x.app.allot.checkedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>` : ''}</td>
             <td class="num">${st === 'ALLOTTED' ? `<input class="ashares" type="number" min="1" step="1" value="${esc(x.app.allot.shares ?? '')}" aria-label="Shares allotted">` : '–'}</td>
           </tr>`; }).join('') || '<tr><td colspan="6" class="muted">No accounts match this filter.</td></tr>'}</tbody>
       </table></div>`;
@@ -986,7 +990,24 @@
     $('#afSetup').addEventListener('toggle', (e) => { if (!e.target.open) store.set('afSetupSeen', '1'); });
     bookmarklet().then((href) => { const a = $('#bmLink'); if (a && href) a.href = href; });
     $('#bmLink').addEventListener('click', (e) => { e.preventDefault(); toast('Drag this button to your bookmarks bar, then click it on the registrar page', false); });
-    $$('button.chk', p).forEach((b) => b.addEventListener('click', () => { const x = get(rowAcc(b)); openCheck(ipo, x.acc, x.app); }));
+    $$('button.chk', p).forEach((b) => b.addEventListener('click', async () => {
+      const x = get(rowAcc(b));
+      if (!(autoReg(ipo) && bridge)) return openCheck(ipo, x.acc, x.app);
+      if (!x.app.appNo && !x.acc.pan) return toast(`Add the application no. or PAN for ${x.acc.name} first`, true);
+      b.disabled = true; b.textContent = 'Checking…';
+      let res = await bridgeLookup({ registrar: 'bigshare', ipoName: ipo.name, appNo: x.app.appNo || '', pan: x.app.appNo ? '' : (x.acc.pan || '') });
+      if (res.status === 'ALLOTTED' || res.status === 'NOT') {
+        await db.collection('apps').doc(appKey(ipo.id, x.acc.id)).set({ ...x.app, allot: { status: res.status, shares: res.status === 'ALLOTTED' ? res.allotted : 0, checkedAt: new Date().toISOString(), source: 'Bigshare (automatic)' }, updatedAt: new Date().toISOString() });
+        toast(`${x.acc.name}: ${res.status === 'ALLOTTED' ? `allotted ${inr(res.allotted)} shares` : 'not allotted'}`);
+      } else {
+        toast(`${x.acc.name}: ${res.status === 'RATELIMIT' ? `Bigshare asked to wait ${res.wait || 30}s, try again shortly` : res.status === 'NOTFOUND' ? 'no record at Bigshare yet' : res.message || res.status}`, true);
+        b.disabled = false; b.textContent = 'Check allotment';
+      }
+    }));
+    $('#autoStart')?.addEventListener('click', () => autoCheck(ipo, { force: !rows.some((x) => allotOf(x.app) === 'PENDING') }));
+    $('#autoToggle')?.addEventListener('change', (e) => { store.set('autoAllot', e.target.checked ? '1' : '0'); if (e.target.checked) runAutoAll(); });
+    $('#autoStop')?.addEventListener('click', () => { if (autoRun) autoRun.stop = true; });
+    $('#autoClose')?.addEventListener('click', () => { delete lastAuto[ipo.id]; renderAllotPanel(); });
     $$('.seg button[data-al]', p).forEach((b) => b.addEventListener('click', () => saveAllot(ipo, rowAcc(b), b.dataset.al)));
     $$('input.ashares', p).forEach((inp) => inp.addEventListener('change', () => saveAllot(ipo, rowAcc(inp), 'ALLOTTED', inp.value)));
     $('#walkStart').addEventListener('click', () => {
@@ -998,6 +1019,94 @@
     });
     renderWalk(ipo, rows);
   }
+
+  // ---- Fully automatic checks (registrars whose public lookup has no CAPTCHA: Bigshare) ----
+  // The lookup itself is done by the FinDeependence Tampermonkey script, from this browser straight to the
+  // registrar. The app only asks it to; your data is never sent anywhere else.
+  let bridge = null;
+  const pendingLookups = new Map();
+  let lookupSeq = 0;
+  window.addEventListener('message', (e) => {
+    if (e.origin !== location.origin) return;
+    const m = e.data || {};
+    if (m.fdBridge && !bridge) { bridge = m.fdBridge; if (view === 'allot') renderAllot(); setTimeout(runAutoAll, 1500); }
+    if (m.fdLookupResult && pendingLookups.has(m.fdLookupResult.id)) { const f = pendingLookups.get(m.fdLookupResult.id); pendingLookups.delete(m.fdLookupResult.id); f(m.fdLookupResult); }
+  });
+  try { window.postMessage({ fdBridgePing: true }, location.origin); } catch {}
+  const autoReg = (ipo) => (/bigshare/i.test(ipo.registrar || '') ? 'bigshare' : null);
+  const autoOn = () => store.get('autoAllot') !== '0';
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  function bridgeLookup(q) {
+    return new Promise((resolve) => {
+      const id = 'q' + (++lookupSeq);
+      pendingLookups.set(id, resolve);
+      window.postMessage({ fdLookup: { ...q, id } }, location.origin);
+      setTimeout(() => { if (pendingLookups.has(id)) { pendingLookups.delete(id); resolve({ status: 'ERROR', message: 'No reply from the FinDeependence script' }); } }, 60000);
+    });
+  }
+  let autoRun = null;            // the run in progress
+  const lastAuto = {};           // ipoId -> summary of the last run
+  const autoTriedAt = {};        // ipoId -> time of the last automatic attempt
+  function paintAuto() { const c = $('#autoCard'); if (c) c.innerHTML = autoCardHtml(); }
+  function autoCardHtml() {
+    if (autoRun && autoRun.ipoId === aSel) {
+      return `<div class="walk"><div class="walk-top"><span class="lbl">Checking automatically · ${autoRun.done} of ${autoRun.total}</span><div class="bar"><span style="width:${Math.round((autoRun.done / autoRun.total) * 100)}%"></span></div><button class="danger" id="autoStop">Stop</button></div><div class="muted">${esc(autoRun.msg)}</div></div>`;
+    }
+    const s = lastAuto[aSel];
+    if (s) return `<div class="walk done"><div><b>Automatic check finished:</b> ${s.won} allotted · ${s.lost} not allotted${s.errors.length ? ` · ${s.errors.length} not checked` : ''}${s.note ? ` · ${esc(s.note)}` : ''}${s.errors.length ? `<div class="muted" style="font-size:12px;margin-top:4px">${s.errors.map(esc).join('<br>')}</div>` : ''}</div><button id="autoClose">Close</button></div>`;
+    return '';
+  }
+  async function autoCheck(ipo, { force = false, silent = false } = {}) {
+    const reg = autoReg(ipo);
+    if (!reg || !bridge || autoRun) return false;
+    const rows = appliedRows(ipo).filter((x) => (force || allotOf(x.app) === 'PENDING') && (x.app.appNo || x.acc.pan));
+    autoTriedAt[ipo.id] = Date.now();
+    if (!rows.length) { if (!silent) toast('Nothing to check: every account already has a result, or no application numbers are saved'); return false; }
+    autoRun = { ipoId: ipo.id, total: rows.length, done: 0, won: 0, lost: 0, errors: [], note: '', msg: 'Starting…', stop: false };
+    if (view === 'allot') renderAllotPanel();
+    for (const x of rows) {
+      if (autoRun.stop) break;
+      let res, tries = 0;
+      for (;;) {
+        autoRun.msg = `Checking ${x.acc.name}…`; paintAuto();
+        res = await bridgeLookup({ registrar: reg, ipoName: ipo.name, appNo: x.app.appNo || '', pan: x.app.appNo ? '' : (x.acc.pan || '') });
+        if (res.status === 'RATELIMIT' && tries++ < 5 && !autoRun.stop) {
+          for (let w = res.wait || 30; w > 0 && !autoRun.stop; w--) { autoRun.msg = `Bigshare asked us to wait · resuming in ${w}s`; paintAuto(); await sleep(1000); }
+          continue;
+        }
+        break;
+      }
+      if (res.status === 'ALLOTTED' || res.status === 'NOT') {
+        const cur = S.apps.get(appKey(ipo.id, x.acc.id));
+        if (cur) await db.collection('apps').doc(appKey(ipo.id, x.acc.id)).set({ ...cur, allot: { status: res.status, shares: res.status === 'ALLOTTED' ? res.allotted : 0, checkedAt: new Date().toISOString(), source: 'Bigshare (automatic)' }, updatedAt: new Date().toISOString() });
+        res.status === 'ALLOTTED' ? autoRun.won++ : autoRun.lost++;
+      } else if (res.status === 'NOLIST') { autoRun.note = 'results are not published yet; the app will try again later'; autoRun.done = autoRun.total; break; }
+      else autoRun.errors.push(`${x.acc.name}: ${res.status === 'NOTFOUND' ? 'no record at Bigshare yet (results may not be out, or check the application no.)' : res.message || res.status}`);
+      autoRun.done++; paintAuto();
+      if (autoRun.done < autoRun.total) await sleep(4000); // gentle pace, one lookup at a time
+    }
+    lastAuto[ipo.id] = autoRun; const r = autoRun; autoRun = null;
+    if (view === 'allot') renderAllot();
+    if (!silent || r.won || r.lost) toast(`${ipo.name}: ${r.won} allotted, ${r.lost} not allotted${r.errors.length ? `, ${r.errors.length} not checked` : ''}`);
+    return true;
+  }
+  // Runs by itself: for every Bigshare IPO whose allotment date has come, check pending accounts.
+  // If results aren't out yet it tries again every 30 minutes while the app is open.
+  let autoAllBusy = false;
+  async function runAutoAll() {
+    if (!bridge || !autoOn() || autoAllBusy || !S.loaded.ipos) return;
+    autoAllBusy = true;
+    try {
+      for (const ipo of sortedIpos()) {
+        const ad = allotDate(ipo);
+        if (!autoReg(ipo) || !ad || istToday() < ad || addDays(ad, 30) < istToday()) continue;
+        if (Date.now() - (autoTriedAt[ipo.id] || 0) < 30 * 60000) continue;
+        if (!appliedRows(ipo).some((x) => allotOf(x.app) === 'PENDING' && (x.app.appNo || x.acc.pan))) continue;
+        await autoCheck(ipo, { silent: true });
+      }
+    } finally { autoAllBusy = false; }
+  }
+  setInterval(runAutoAll, 30 * 60000);
 
   // Master check: steps through every account with the registrar page open in one reused tab.
   function renderWalk(ipo, rows) {
@@ -1190,7 +1299,7 @@
       S.feed = feed;
     })
     .catch(() => showStatus('Could not load the NSE IPO list. Reload the page; you can still add IPOs by hand in the IPOs tab.'))
-    .finally(() => { S.loaded.ipos = true; refresh(); });
+    .finally(() => { S.loaded.ipos = true; refresh(); setTimeout(runAutoAll, 1500); });
 
   // ---------- backup / restore ----------
   // ---- Backup as Excel (readable sheets + a hidden copy of the full data, so it can be restored) ----

@@ -202,3 +202,6 @@ details.setup summary { cursor: pointer; }
 .setup-body .lbl { font: 700 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--teal); }
 .setup-body > p.small { grid-column: 1 / -1; margin: 0; font-size: 12px; }
 a.bm { display: inline-block; background: var(--navy); color: #fff; padding: 5px 12px; border-radius: 6px; text-decoration: none; font-weight: 700; cursor: grab; }
+.notice.ok { background: var(--open-soft); }
+.notice label.inl { display: inline-flex; gap: 6px; align-items: center; margin-left: 8px; font-weight: 600; }
+.walk-top .danger { margin-left: 8px; }

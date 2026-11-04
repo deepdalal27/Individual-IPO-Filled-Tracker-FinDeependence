@@ -24,7 +24,13 @@ and gives IPO-wise reports you can download as **Excel** or **PDF**.
   With the one-time **auto-fill** setup (a bookmark button, or the Tampermonkey script `site/fd-allotment.user.js`),
   the registrar page picks the IPO, chooses Application No. or PAN and fills the number by itself. You type the CAPTCHA
   and submit. The details travel after `#` in the address, which is never sent to the registrar's server.
-  Then click **Allotted** or **Not allotted**. **Check all accounts** steps through every
+  Then click **Allotted** or **Not allotted**.
+  **Bigshare IPOs are fully automatic:** Bigshare's public lookup has no CAPTCHA, so with the Tampermonkey script
+  (version 2) installed, the app checks every pending account by itself once results are out, and again every
+  30 minutes while the app is open. It records Allotted / Not allotted and the shares. Lookups go from your browser
+  straight to Bigshare, one at a time with a pause between them, and wait whenever Bigshare asks. Your PANs and
+  application numbers are never sent to GitHub or any other server. Registrars with a CAPTCHA (KFin, MUFG Intime,
+  BSE) stay one-click. **Check all accounts** steps through every
   pending account one by one, copying each number for you. The tab shows allotted / not allotted / pending counts,
   shares allotted and the amount to be unblocked. Registrar pages use CAPTCHAs and don't let other websites read them,
   so the result is recorded with one click instead of being fetched automatically. Allotment results appear in the
