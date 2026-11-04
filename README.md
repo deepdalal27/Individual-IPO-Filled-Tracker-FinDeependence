@@ -18,6 +18,14 @@ and gives IPO-wise reports you can download as **Excel** or **PDF**.
 
   You can change the lots for an account within the category limits, and enter its **Application no.**
   Each application number can be used only once across all IPOs and accounts (capitals and spaces are ignored when checking).
+- **Allotment tab:** for each IPO you applied in, every account with its application number.
+  **Check allotment ↗** copies the application number (or PAN if no number is entered) and opens the IPO's
+  registrar page (KFin, MUFG Intime, Bigshare, Cameo, Skyline, Purva, Maashitla, Integrated; BSE as fallback).
+  Paste the number there, then click **Allotted** or **Not allotted**. **Check all accounts** steps through every
+  pending account one by one, copying each number for you. The tab shows allotted / not allotted / pending counts,
+  shares allotted and the amount to be unblocked. Registrar pages use CAPTCHAs and don't let other websites read them,
+  so the result is recorded with one click instead of being fetched automatically. Allotment results appear in the
+  reports, Excel and PDF too.
 - **Reports tab** has four views. Filter by date, IPO, account or category (sHNI, bHNI or None):
   - **By IPO:** for each IPO, how many accounts applied, with sHNI, bHNI and None counts, lots, shares and
     amount blocked, plus the account list for each IPO.

@@ -2,7 +2,7 @@
 // and merges them into site/ipos.json (past IPOs are kept).
 const fs = require('fs');
 const path = require('path');
-const { fetchIpos } = require('../src/nse');
+const { fetchIpos, fetchDetail } = require('../src/nse');
 
 const FILE = path.join(__dirname, '..', 'site', 'ipos.json');
 
@@ -25,6 +25,15 @@ const FILE = path.join(__dirname, '..', 'site', 'ipos.json');
     const cmp = (o) => JSON.stringify({ ...o, syncedAt: undefined });
     if (cmp(merged) !== cmp(prev)) { merged.syncedAt = new Date().toISOString(); changed = true; }
     byId.set(ipo.id, merged);
+  }
+  // Fill in the registrar (needed for allotment checks) for recent IPOs that no longer appear in the live feed.
+  const cutoff = new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10);
+  for (const ipo of byId.values()) {
+    if (ipo.registrar || !ipo.symbol || (ipo.closeDate || '') < cutoff) continue;
+    try {
+      const d = await fetchDetail(ipo.symbol, ipo.type === 'SME' ? 'SME' : 'EQ');
+      if (d.registrar) { ipo.registrar = d.registrar; changed = true; }
+    } catch (e) { /* try again next run */ }
   }
   const ipos = [...byId.values()].sort((a, b) => String(b.openDate || '').localeCompare(String(a.openDate || '')));
   const out = { updatedAt: new Date().toISOString(), source: 'NSE', errors: result.errors, ipos };

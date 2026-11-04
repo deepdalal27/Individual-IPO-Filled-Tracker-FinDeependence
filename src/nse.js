@@ -38,6 +38,7 @@ async function fetchDetail(symbol, series) {
     openDate: parseDate(period[0]), closeDate: parseDate(period[1]),
     priceLow: price.low, priceHigh: price.high,
     lotSize: parseLot(info['Bid Lot'] || info['Lot Size'] || info['Minimum Order Quantity']),
+    registrar: String(info['Name of the Registrar'] || '').replace(/\s+/g, ' ').trim() || null,
   };
 }
 
@@ -69,4 +70,4 @@ async function fetchIpos({ includeSme = true } = {}) {
   return { ipos, errors };
 }
 
-module.exports = { fetchIpos, parseDate, parsePrice, parseLot };
+module.exports = { fetchIpos, fetchDetail, parseDate, parsePrice, parseLot };

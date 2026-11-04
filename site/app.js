@@ -63,6 +63,7 @@
     if (view === 'report') renderReport();
     if (view === 'ipos') renderIpos();
     if (view === 'accounts') renderAccounts();
+    if (view === 'allot') renderAllot();
   }
   // Re-render on live data, but not while the person is typing in a field.
   let pending = false;
@@ -113,7 +114,7 @@
       </div>
       ${la ? '' : '<p class="notice">Price band or lot size not announced yet. You can still mark categories; lots and amounts fill in once the IPO details are added.</p>'}
       <div class="tbl"><table>
-        <thead><tr><th>#</th><th>Account</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Amount blocked</th><th>Application no.</th><th>Remarks</th></tr></thead>
+        <thead><tr><th>#</th><th>Account</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Amount blocked</th><th>Application no.</th><th>Allotment</th><th>Remarks</th></tr></thead>
         <tbody>${rows.map((a, i) => rowHtml(ipo, a, i)).join('')}</tbody>
         <tfoot>${totalsHtml(ipo, rows)}</tfoot>
       </table></div>`;
@@ -168,7 +169,7 @@
     if (!db) return toast('Saving is unavailable right now', true);
     const k = appKey(ipo.id, accId);
     const cur = S.apps.get(k) || { ipoId: ipo.id, accountId: accId, category: null, lots: null, remarks: '' };
-    const next = { ipoId: ipo.id, accountId: accId, category: cur.category || null, lots: cur.lots ?? null, remarks: cur.remarks || '', appNo: cur.appNo || '' };
+    const next = { ipoId: ipo.id, accountId: accId, category: cur.category || null, lots: cur.lots ?? null, remarks: cur.remarks || '', appNo: cur.appNo || '', allot: cur.allot || null };
     if ('category' in patch) { if (patch.category !== next.category) next.lots = null; next.category = patch.category; }
     if ('lots' in patch) {
       const n = patch.lots === '' ? null : Number(patch.lots);
@@ -242,13 +243,13 @@
       const app = applied(ipo.id, acc.id);
       const cat = app ? app.category : 'NONE';
       const c = app ? calc(ipo, app) : { lots: 0, shares: 0, amount: 0 };
-      cells.push({ ipo, acc, cat, lots: c.lots, shares: c.shares, amount: c.amount, remarks: app?.remarks || '', appNo: app?.appNo || '' });
+      cells.push({ ipo, acc, cat, lots: c.lots, shares: c.shares, amount: c.amount, remarks: app?.remarks || '', appNo: app?.appNo || '', allot: app ? allotOf(app) : null, allotShares: app?.allot?.status === 'ALLOTTED' ? Number(app.allot.shares) || 0 : 0 });
     }
     const shown = f.cat ? cells.filter((c) => c.cat === f.cat) : cells;
     const sum = (list) => {
       const t = { cells: list.length, shni: 0, bhni: 0, none: 0, lots: 0, shares: 0, amount: 0 };
       for (const c of list) { if (c.cat === 'SHNI') t.shni++; else if (c.cat === 'BHNI') t.bhni++; else t.none++; t.lots += c.lots || 0; t.shares += c.shares || 0; t.amount += c.amount || 0; }
-      t.applied = t.shni + t.bhni; return t;
+      t.applied = t.shni + t.bhni; t.won = list.filter((c) => c.allot === 'ALLOTTED').length; t.wonShares = list.reduce((a, c) => a + (c.allotShares || 0), 0); return t;
     };
     let byIpo = ipos.map((ipo) => { const list = shown.filter((c) => c.ipo === ipo); return { src: ipo, ipo: { ...ipo, status: status(ipo), lotAmount: lotAmt(ipo) }, list, t: sum(list) }; });
     byIpo = sortBy(byIpo, f.isort, (b, k) => ({ open: b.ipo.openDate, close: b.ipo.closeDate, name: b.ipo.name, amount: b.t.amount, applied: b.t.applied, price: b.ipo.priceHigh }[k]));
@@ -338,8 +339,8 @@
         <tfoot><tr class="tot"><td>Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="num">${g.applied} / ${g.cells}</td><td class="num">${g.shni}</td><td class="num">${g.bhni}</td><td class="num">${g.none}</td><td class="num">${inr(g.lots)}</td><td class="num">${inr(g.shares)}</td><td class="num">${rs(g.amount)}</td></tr></tfoot></table></div>
         <h3 class="sec">Accounts in each IPO</h3>
         ${d.byIpo.map((b) => `<details class="blk" ${d.f.ipo ? 'open' : ''}><summary><span>${esc(b.ipo.name)}</span><span class="muted">${b.t.shni} sHNI · ${b.t.bhni} bHNI · ${b.t.none} None · <span class="num">${rs(b.t.amount)}</span></span></summary>
-          <div class="tbl"><table><thead><tr><th>Account</th><th>PAN</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Amount</th><th>Application no.</th><th>Remarks</th></tr></thead>
-          <tbody>${b.list.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${accLink(c.acc)}</td><td class="mono">${esc(c.acc.pan || '')}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td class="mono">${esc(c.appNo) || (c.cat === 'NONE' ? '' : '<span class="muted">–</span>')}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div></details>`).join('')}`;
+          <div class="tbl"><table><thead><tr><th>Account</th><th>PAN</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Amount</th><th>Application no.</th><th>Allotment</th><th>Remarks</th></tr></thead>
+          <tbody>${b.list.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${accLink(c.acc)}</td><td class="mono">${esc(c.acc.pan || '')}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td class="mono">${esc(c.appNo) || (c.cat === 'NONE' ? '' : '<span class="muted">–</span>')}</td><td>${c.allot ? allotPill(c.allot) + (c.allotShares ? ` <span class="mono">${inr(c.allotShares)}</span>` : '') : ''}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div></details>`).join('')}`;
     } else if (rView === 'acc') {
       body = `<h3 class="sec">Account-wise · which IPOs each account applied in</h3><div class="tbl"><table>
         <thead><tr>${sh('#', 'list', 'acc', 'num', 'asc')}${sh('Account', 'name', 'acc', '', 'asc')}<th>PAN</th>${sh('IPOs applied', 'applied', 'acc', 'num')}<th class="num">sHNI</th><th class="num">bHNI</th><th class="num">None</th><th class="num">Hit rate</th>${sh('Amount blocked', 'amount', 'acc', 'num')}<th>Last applied in</th></tr></thead>
@@ -347,8 +348,8 @@
         <tfoot><tr class="tot"><td></td><td>Total</td><td></td><td class="num">${g.applied} / ${g.cells}</td><td class="num">${g.shni}</td><td class="num">${g.bhni}</td><td class="num">${g.none}</td><td class="num">${pct(g.applied, g.cells)}</td><td class="num">${rs(g.amount)}</td><td></td></tr></tfoot></table></div>
         <h3 class="sec">IPO history of each account</h3>
         ${d.byAcc.map((b) => `<details class="blk" ${d.f.acc ? 'open' : ''}><summary><span>${esc(b.acc.name)}</span><span class="muted">${b.t.applied} IPOs · ${b.t.shni} sHNI · ${b.t.bhni} bHNI · <span class="num">${rs(b.t.amount)}</span></span></summary>
-          <div class="tbl"><table><thead><tr><th>IPO</th><th>Open</th><th>Close</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Upper price</th><th class="num">Amount</th><th>Application no.</th><th>Remarks</th></tr></thead>
-          <tbody>${b.list.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${ipoLink(c.ipo)}</td><td>${fd(c.ipo.openDate)}</td><td>${fd(c.ipo.closeDate)}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${rs(c.ipo.priceHigh)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td class="mono">${esc(c.appNo) || (c.cat === 'NONE' ? '' : '<span class="muted">–</span>')}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div></details>`).join('')}`;
+          <div class="tbl"><table><thead><tr><th>IPO</th><th>Open</th><th>Close</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Upper price</th><th class="num">Amount</th><th>Application no.</th><th>Allotment</th><th>Remarks</th></tr></thead>
+          <tbody>${b.list.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${ipoLink(c.ipo)}</td><td>${fd(c.ipo.openDate)}</td><td>${fd(c.ipo.closeDate)}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${rs(c.ipo.priceHigh)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td class="mono">${esc(c.appNo) || (c.cat === 'NONE' ? '' : '<span class="muted">–</span>')}</td><td>${c.allot ? allotPill(c.allot) + (c.allotShares ? ` <span class="mono">${inr(c.allotShares)}</span>` : '') : ''}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div></details>`).join('')}`;
     } else if (rView === 'matrix') {
       const cellOf = (ipo, acc) => d.shown.find((c) => c.ipo === ipo && c.acc === acc);
       const mark = (c) => (!c ? '' : c.cat === 'SHNI' ? '<span class="mx s">S</span>' : c.cat === 'BHNI' ? '<span class="mx b">B</span>' : '<span class="mx n">–</span>');
@@ -358,8 +359,8 @@
         <tfoot>${[['sHNI', 'shni'], ['bHNI', 'bhni'], ['None', 'none']].map(([l, k]) => `<tr class="tot"><td class="stick">${l}</td>${d.byIpo.map((b) => `<td class="num">${b.t[k]}</td>`).join('')}<td class="num">${k === 'shni' ? g.shni : ''}</td><td class="num">${k === 'bhni' ? g.bhni : ''}</td><td class="num">${k === 'none' ? g.none : ''}</td></tr>`).join('')}</tfoot></table></div>`;
     } else {
       body = `<h3 class="sec">All rows · every IPO × account (${d.shown.length})</h3><div class="tbl"><table>
-        <thead><tr><th>IPO</th><th>Open</th><th>Close</th><th>Account</th><th>PAN</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Upper price</th><th class="num">Amount</th><th>Application no.</th><th>Remarks</th></tr></thead>
-        <tbody>${d.shown.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${ipoLink(c.ipo)}</td><td>${fd(c.ipo.openDate)}</td><td>${fd(c.ipo.closeDate)}</td><td>${accLink(c.acc)}</td><td class="mono">${esc(c.acc.pan || '')}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${rs(c.ipo.priceHigh)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td class="mono">${esc(c.appNo) || (c.cat === 'NONE' ? '' : '<span class="muted">–</span>')}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div>`;
+        <thead><tr><th>IPO</th><th>Open</th><th>Close</th><th>Account</th><th>PAN</th><th>Category</th><th class="num">Lots</th><th class="num">Shares</th><th class="num">Upper price</th><th class="num">Amount</th><th>Application no.</th><th>Allotment</th><th>Remarks</th></tr></thead>
+        <tbody>${d.shown.map((c) => `<tr class="${c.cat === 'NONE' ? 'none-row' : 'c-' + c.cat}"><td>${ipoLink(c.ipo)}</td><td>${fd(c.ipo.openDate)}</td><td>${fd(c.ipo.closeDate)}</td><td>${accLink(c.acc)}</td><td class="mono">${esc(c.acc.pan || '')}</td><td>${pill(c.cat)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.lots)}</td><td class="num">${c.cat === 'NONE' ? '–' : inr(c.shares)}</td><td class="num">${rs(c.ipo.priceHigh)}</td><td class="num">${c.cat === 'NONE' ? '–' : rs(c.amount)}</td><td class="mono">${esc(c.appNo) || (c.cat === 'NONE' ? '' : '<span class="muted">–</span>')}</td><td>${c.allot ? allotPill(c.allot) + (c.allotShares ? ` <span class="mono">${inr(c.allotShares)}</span>` : '') : ''}</td><td>${esc(c.remarks)}</td></tr>`).join('')}</tbody></table></div>`;
     }
     $('#reportOut').innerHTML = tiles + body;
   }
@@ -490,6 +491,13 @@
       ws.getCell(`${col}${r}`).dataValidation = { type: 'custom', allowBlank: true, formulae: [`COUNTIF(${rng},${col}${r})<=1`], showErrorMessage: true, errorStyle: 'stop', errorTitle: 'Duplicate application number', error: 'This application number is already used in another row. Each number can be used only once.' };
     }
   }
+  function cfAllot(ws) {
+    ws.addConditionalFormatting({ ref: 'A6:Z5000', rules: [
+      { type: 'cellIs', operator: 'equal', formulae: ['"Allotted"'], priority: 4, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: XL.openFill } }, font: { bold: true, color: { argb: XL.openFont } } } },
+      { type: 'cellIs', operator: 'equal', formulae: ['"Pending"'], priority: 5, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: XL.soonFill } }, font: { color: { argb: XL.soonFont } } } },
+      { type: 'cellIs', operator: 'equal', formulae: ['"Not allotted"'], priority: 6, style: { font: { color: { argb: XL.nFont } } } },
+    ] });
+  }
   const freeze = (ws, H, xSplit = 1) => { ws.views = [{ state: 'frozen', xSplit, ySplit: H, showGridLines: false, zoomScale: 100 }]; };
   const autoF = (ws, H, last, n) => { if (last > H) ws.autoFilter = { from: { row: H, column: 1 }, to: { row: last, column: n } }; };
 
@@ -554,9 +562,10 @@
         { h: 'Accounts', key: 'cells', w: 9, num: true, sum: true }, { h: 'Applied', key: 'applied', w: 9, num: true, sum: true },
         { h: 'sHNI', key: 'shni', w: 8, num: true, sum: true, hFill: XL.teal }, { h: 'bHNI', key: 'bhni', w: 8, num: true, sum: true, hFill: XL.pen }, { h: 'None', key: 'none', w: 8, num: true, sum: true, hFill: 'FF8C9096' },
         { h: 'Hit rate', key: 'hit', w: 9, num: true, fmt: '0%' }, { h: 'Lots', key: 'lots', w: 9, num: true, sum: true, fmt: INR_FMT }, { h: 'Shares', key: 'shares', w: 11, num: true, sum: true, fmt: INR_FMT }, { h: 'Amount blocked ₹', key: 'amount', w: 17, num: true, sum: true, fmt: INR_FMT },
+        { h: 'Allotted a/c', key: 'won', w: 9, num: true, sum: true, hFill: 'FF2E7406' }, { h: 'Shares allotted', key: 'wonSh', w: 10, num: true, sum: true, fmt: INR_FMT, hFill: 'FF2E7406' },
       ];
       const { ws, H, n } = xlSheet(wb, 'IPO-wise', 'IPO-wise summary', d, cols, { note: 'Use the ▼ header filters to sort by name, open or close date, amount or status. Totals follow the filter.' });
-      const rows = d.byIpo.map((b) => ({ name: b.ipo.name, symbol: b.ipo.symbol || '', type: b.ipo.type || 'Mainboard', status: b.ipo.status, open: b.ipo.openDate, close: b.ipo.closeDate, low: b.ipo.priceLow, high: b.ipo.priceHigh, lot: b.ipo.lotSize, lotAmt: b.ipo.lotAmount || null, cells: b.t.cells, applied: b.t.applied, shni: b.t.shni, bhni: b.t.bhni, none: b.t.none, hit: b.t.cells ? b.t.applied / b.t.cells : 0, lots: b.t.lots, shares: b.t.shares, amount: b.t.amount }));
+      const rows = d.byIpo.map((b) => ({ name: b.ipo.name, symbol: b.ipo.symbol || '', type: b.ipo.type || 'Mainboard', status: b.ipo.status, open: b.ipo.openDate, close: b.ipo.closeDate, low: b.ipo.priceLow, high: b.ipo.priceHigh, lot: b.ipo.lotSize, lotAmt: b.ipo.lotAmount || null, cells: b.t.cells, applied: b.t.applied, shni: b.t.shni, bhni: b.t.bhni, none: b.t.none, hit: b.t.cells ? b.t.applied / b.t.cells : 0, lots: b.t.lots, shares: b.t.shares, amount: b.t.amount, won: b.t.won, wonSh: b.t.wonShares }));
       const last = xlRows(ws, H, cols, rows);
       xlTotals(ws, last + 1, cols, H, last, 'TOTAL', { hit: last > H ? { formula: `IFERROR(SUBTOTAL(109,L${H + 1}:L${last})/SUBTOTAL(109,K${H + 1}:K${last}),0)` } : 0 });
       if (last > H) {
@@ -574,10 +583,10 @@
         { h: '#', key: 'no', w: 5, num: true }, { h: 'Account', key: 'name', w: 30, bold: true }, { h: 'PAN', key: 'pan', w: 13 },
         { h: 'IPOs in scope', key: 'cells', w: 10, num: true, sum: true }, { h: 'IPOs applied', key: 'applied', w: 10, num: true, sum: true },
         { h: 'sHNI', key: 'shni', w: 8, num: true, sum: true, hFill: XL.teal }, { h: 'bHNI', key: 'bhni', w: 8, num: true, sum: true, hFill: XL.pen }, { h: 'None', key: 'none', w: 8, num: true, sum: true, hFill: 'FF8C9096' },
-        { h: 'Hit rate', key: 'hit', w: 9, num: true, fmt: '0%' }, { h: 'Amount blocked ₹', key: 'amount', w: 17, num: true, sum: true, fmt: INR_FMT }, { h: 'Last applied in', key: 'last', w: 36 },
+        { h: 'Hit rate', key: 'hit', w: 9, num: true, fmt: '0%' }, { h: 'Amount blocked ₹', key: 'amount', w: 17, num: true, sum: true, fmt: INR_FMT }, { h: 'Allotted', key: 'won', w: 9, num: true, sum: true, hFill: 'FF2E7406' }, { h: 'Last applied in', key: 'last', w: 36 },
       ];
       const { ws, H, n } = xlSheet(wb, 'Account-wise', 'Account-wise summary', d, cols, { note: 'Sort by name, IPOs applied or amount with the ▼ header filters.' });
-      const rows = d.byAcc.map((b, i) => ({ no: i + 1, name: b.acc.name, pan: b.acc.pan || '', cells: b.t.cells, applied: b.t.applied, shni: b.t.shni, bhni: b.t.bhni, none: b.t.none, hit: b.t.cells ? b.t.applied / b.t.cells : 0, amount: b.t.amount, last: b.last?.name || '–' }));
+      const rows = d.byAcc.map((b, i) => ({ no: i + 1, name: b.acc.name, pan: b.acc.pan || '', cells: b.t.cells, applied: b.t.applied, shni: b.t.shni, bhni: b.t.bhni, none: b.t.none, hit: b.t.cells ? b.t.applied / b.t.cells : 0, amount: b.t.amount, won: b.t.won, last: b.last?.name || '–' }));
       const last = xlRows(ws, H, cols, rows);
       xlTotals(ws, last + 1, cols, H, last, '', { name: 'TOTAL', hit: last > H ? { formula: `IFERROR(SUBTOTAL(109,E${H + 1}:E${last})/SUBTOTAL(109,D${H + 1}:D${last}),0)` } : 0 });
       if (last > H) {
@@ -662,12 +671,13 @@
         cfCategory(ws, `${catCol}${first}:${catCol}${last}`);
         ws.addConditionalFormatting({ ref: `${appCol}${first}:${appCol}${last}`, rules: [{ type: 'expression', formulae: [`AND(${appCol}${first}<>"",ISERROR(SEARCH(" entered",${appCol}${first})),COUNTIF($${appCol}$${first}:$${appCol}$${last},${appCol}${first})>1)`], priority: 0, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF8D7D5' } }, font: { bold: true, color: { argb: 'FFB3261E' } } } }] });
       }
+      cfAllot(ws);
       ws.views = [{ state: 'frozen', xSplit: 0, ySplit: H, showGridLines: false }];
     };
-    const rowOf = (c) => ({ ipo: c.ipo.name, symbol: c.ipo.symbol || '', type: c.ipo.type || 'Mainboard', status: status(c.ipo), open: c.ipo.openDate, close: c.ipo.closeDate, acc: c.acc.name, pan: c.acc.pan || '', cat: CATN[c.cat], appNo: c.appNo || '', lots: c.cat === 'NONE' ? null : c.lots, shares: c.cat === 'NONE' ? null : c.shares, price: c.ipo.priceHigh ?? null, amount: c.cat === 'NONE' ? null : c.amount, remarks: c.remarks });
+    const rowOf = (c) => ({ ipo: c.ipo.name, symbol: c.ipo.symbol || '', type: c.ipo.type || 'Mainboard', status: status(c.ipo), open: c.ipo.openDate, close: c.ipo.closeDate, acc: c.acc.name, pan: c.acc.pan || '', cat: CATN[c.cat], appNo: c.appNo || '', allot: c.allot ? ALLOT[c.allot] : '', allotSh: c.allotShares || null, lots: c.cat === 'NONE' ? null : c.lots, shares: c.cat === 'NONE' ? null : c.shares, price: c.ipo.priceHigh ?? null, amount: c.cat === 'NONE' ? null : c.amount, remarks: c.remarks });
     const money = (k, h, w) => ({ h, key: k, w, num: true, sum: true, fmt: INR_FMT });
     if (want.has('ipoDet')) {
-      const cols = [{ h: 'Account', key: 'acc', w: 30, bold: true }, { h: 'PAN', key: 'pan', w: 13 }, { h: 'Category', key: 'cat', w: 11, center: true }, { h: 'Application no.', key: 'appNo', w: 22, text: true },
+      const cols = [{ h: 'Account', key: 'acc', w: 30, bold: true }, { h: 'PAN', key: 'pan', w: 13 }, { h: 'Category', key: 'cat', w: 11, center: true }, { h: 'Application no.', key: 'appNo', w: 22, text: true }, { h: 'Allotment', key: 'allot', w: 13, center: true }, money('allotSh', 'Shares allotted', 10),
         money('lots', 'Lots', 9), money('shares', 'Shares', 11), { h: 'Upper price ₹', key: 'price', w: 12, num: true, fmt: INR_FMT }, money('amount', 'Amount blocked ₹', 18), { h: 'Remarks', key: 'remarks', w: 28 }];
       statement('IPO detail', 'IPO detail · accounts in each IPO', d.byIpo.map((b) => ({
         band: `${b.ipo.name}${b.ipo.symbol ? ' (' + b.ipo.symbol + ')' : ''}   ·   ${b.ipo.type || 'Mainboard'}   ·   ${fdx(b.ipo.openDate)} to ${fdx(b.ipo.closeDate)}   ·   ₹${inr(b.ipo.priceHigh)} × ${inr(b.ipo.lotSize)} sh   ·   ${b.ipo.status}`,
@@ -677,7 +687,7 @@
     }
     if (want.has('accDet')) {
       const cols = [{ h: 'IPO', key: 'ipo', w: 36, bold: true }, { h: 'Type', key: 'type', w: 11, center: true }, { h: 'Open', key: 'open', w: 13, date: true, center: true }, { h: 'Close', key: 'close', w: 13, date: true, center: true },
-        { h: 'Category', key: 'cat', w: 11, center: true }, { h: 'Application no.', key: 'appNo', w: 22, text: true },
+        { h: 'Category', key: 'cat', w: 11, center: true }, { h: 'Application no.', key: 'appNo', w: 22, text: true }, { h: 'Allotment', key: 'allot', w: 13, center: true }, money('allotSh', 'Shares allotted', 10),
         money('lots', 'Lots', 9), money('shares', 'Shares', 11), { h: 'Upper price ₹', key: 'price', w: 12, num: true, fmt: INR_FMT }, money('amount', 'Amount blocked ₹', 18), { h: 'Remarks', key: 'remarks', w: 28 }];
       statement('Account detail', 'Account detail · IPO history with application numbers', d.byAcc.map((b) => ({
         band: `${b.acc.name}${b.acc.pan ? '   ·   PAN ' + b.acc.pan : ''}   ·   ${b.t.applied} of ${b.t.cells} IPOs applied   ·   ₹${inr(b.t.amount)} blocked`,
@@ -691,17 +701,17 @@
       const cols = [
         { h: 'IPO', key: 'ipo', w: 36, bold: true }, { h: 'Symbol', key: 'symbol', w: 12 }, { h: 'Type', key: 'type', w: 11, center: true }, { h: 'Status', key: 'status', w: 11, center: true },
         { h: 'Open', key: 'open', w: 13, date: true, center: true }, { h: 'Close', key: 'close', w: 13, date: true, center: true },
-        { h: 'Account', key: 'acc', w: 28 }, { h: 'PAN', key: 'pan', w: 13 }, { h: 'Category', key: 'cat', w: 11, center: true }, { h: 'Application no.', key: 'appNo', w: 20, text: true },
+        { h: 'Account', key: 'acc', w: 28 }, { h: 'PAN', key: 'pan', w: 13 }, { h: 'Category', key: 'cat', w: 11, center: true }, { h: 'Application no.', key: 'appNo', w: 20, text: true }, { h: 'Allotment', key: 'allot', w: 13, center: true }, { h: 'Shares allotted', key: 'allotSh', w: 10, num: true, sum: true, fmt: INR_FMT },
         { h: 'Lots', key: 'lots', w: 8, num: true, sum: true, fmt: INR_FMT }, { h: 'Shares', key: 'shares', w: 10, num: true, sum: true, fmt: INR_FMT }, { h: 'Upper price ₹', key: 'price', w: 11, num: true, fmt: INR_FMT },
         { h: 'Amount blocked ₹', key: 'amount', w: 17, num: true, sum: true, fmt: INR_FMT }, { h: 'Remarks', key: 'remarks', w: 26 },
       ];
       const { ws, H, n } = xlSheet(wb, 'All rows', 'All rows · every IPO × account', d, cols, { note: 'Filter Category to sHNI / bHNI / None; sort IPO A–Z or by open / close date. Totals follow the filter.' });
-      const rows = d.shown.map((c) => ({ ipo: c.ipo.name, symbol: c.ipo.symbol || '', type: c.ipo.type || 'Mainboard', status: status(c.ipo), open: c.ipo.openDate, close: c.ipo.closeDate, acc: c.acc.name, pan: c.acc.pan || '', cat: CATN[c.cat], appNo: c.appNo || '', lots: c.lots || 0, shares: c.shares || 0, price: c.ipo.priceHigh ?? null, amount: c.amount || 0, remarks: c.remarks }));
+      const rows = d.shown.map((c) => ({ ipo: c.ipo.name, symbol: c.ipo.symbol || '', type: c.ipo.type || 'Mainboard', status: status(c.ipo), open: c.ipo.openDate, close: c.ipo.closeDate, acc: c.acc.name, pan: c.acc.pan || '', cat: CATN[c.cat], appNo: c.appNo || '', allot: c.allot ? ALLOT[c.allot] : '', allotSh: c.allotShares || null, lots: c.lots || 0, shares: c.shares || 0, price: c.ipo.priceHigh ?? null, amount: c.amount || 0, remarks: c.remarks }));
       const last = xlRows(ws, H, cols, rows);
       xlTotals(ws, last + 1, cols, H, last, 'TOTAL', { cat: last > H ? { formula: `SUBTOTAL(103,I${H + 1}:I${last})&" rows"` } : '' });
       if (last > H) {
         cfRowTint(ws, `A${H + 1}:${colL(n)}${last}`, 'I', H + 1); cfCategory(ws, `I${H + 1}:I${last}`); cfStatus(ws, `D${H + 1}:D${last}`);
-        cfDupAppNo(ws, 'J', H + 1, last);
+        cfDupAppNo(ws, 'J', H + 1, last); cfAllot(ws);
       }
       freeze(ws, H, 1); autoF(ws, H, last, n);
     }
@@ -756,6 +766,7 @@
     chip(32, [44, 143, 147], 'S = sHNI', [255, 255, 255]); chip(84, [29, 95, 168], 'B = bHNI', [255, 255, 255]); chip(136, [240, 236, 228], '- = None', [120, 124, 130]);
     doc.lastAutoTable = { finalY: 98 };
     let y;
+    const allotCell = (x, col) => { if (x.section !== 'body' || x.column.index !== col) return; const v = String(x.cell.raw || ''); if (v.startsWith('Allotted')) { x.cell.styles.fillColor = [221, 240, 210]; x.cell.styles.textColor = [46, 116, 6]; x.cell.styles.fontStyle = 'bold'; } else if (v === 'Pending') { x.cell.styles.textColor = [138, 83, 0]; } else if (v) { x.cell.styles.textColor = [140, 144, 150]; } };
     const catCell = (x, col) => { if (x.section === 'body' && x.column.index === col) { if (x.cell.raw === 'sHNI') { x.cell.styles.fillColor = [207, 234, 234]; x.cell.styles.textColor = [19, 90, 93]; x.cell.styles.fontStyle = 'bold'; } if (x.cell.raw === 'bHNI') { x.cell.styles.fillColor = [211, 226, 245]; x.cell.styles.textColor = [18, 63, 117]; x.cell.styles.fontStyle = 'bold'; } if (x.cell.raw === 'None') { x.cell.styles.textColor = [140, 144, 150]; } } };
     if (want.has('ipoSum')) {
     y = heading('IPO-wise summary');
@@ -784,10 +795,10 @@
     if (want.has('ipoDet')) for (const b of d.byIpo) {
       const ap = b.list.filter((c) => c.cat !== 'NONE'), no = b.list.filter((c) => c.cat === 'NONE');
       y = heading(`${b.ipo.name}${b.ipo.symbol ? ' (' + b.ipo.symbol + ')' : ''}`, `${fdx(b.ipo.openDate)} to ${fdx(b.ipo.closeDate)}  |  Price band Rs ${n(b.ipo.priceLow || b.ipo.priceHigh)} - ${n(b.ipo.priceHigh)}  |  Lot ${n(b.ipo.lotSize)}  |  sHNI ${b.t.shni}  bHNI ${b.t.bhni}  None ${b.t.none}`);
-      table({ startY: y, head: [['#', 'Account', 'PAN', 'Category', 'Application no.', 'Lots', 'Shares', 'Upper price', 'Amount blocked', 'Remarks']],
-        body: ap.length ? ap.map((c, i) => [i + 1, c.acc.name, c.acc.pan || '', CATN[c.cat], c.appNo || '-', n(c.lots), n(c.shares), n(c.ipo.priceHigh), n(c.amount), c.remarks]) : [['', 'No applications', '', '', '', '', '', '', '', '']],
-        foot: [['', `Applied ${b.t.applied} accounts`, '', `${b.t.shni} S / ${b.t.bhni} B`, `${b.list.filter((c) => c.cat !== 'NONE' && c.appNo).length} nos.`, n(b.t.lots), n(b.t.shares), '', n(b.t.amount), '']],
-        didParseCell: (x) => { if ([0, 5, 6, 7, 8].includes(x.column.index)) x.cell.styles.halign = 'right'; if (x.section === 'body' && x.column.index === 3) { if (x.cell.raw === 'sHNI') { x.cell.styles.fillColor = [207, 234, 234]; x.cell.styles.textColor = [19, 90, 93]; x.cell.styles.fontStyle = 'bold'; } if (x.cell.raw === 'bHNI') { x.cell.styles.fillColor = [211, 226, 245]; x.cell.styles.textColor = [18, 63, 117]; x.cell.styles.fontStyle = 'bold'; } } } });
+      table({ startY: y, head: [['#', 'Account', 'PAN', 'Category', 'Application no.', 'Lots', 'Shares', 'Upper price', 'Amount blocked', 'Allotment', 'Remarks']],
+        body: ap.length ? ap.map((c, i) => [i + 1, c.acc.name, c.acc.pan || '', CATN[c.cat], c.appNo || '-', n(c.lots), n(c.shares), n(c.ipo.priceHigh), n(c.amount), ALLOT[c.allot] + (c.allotShares ? ` (${n(c.allotShares)})` : ''), c.remarks]) : [['', 'No applications', '', '', '', '', '', '', '', '', '']],
+        foot: [['', `Applied ${b.t.applied} accounts`, '', `${b.t.shni} S / ${b.t.bhni} B`, `${b.list.filter((c) => c.cat !== 'NONE' && c.appNo).length} nos.`, n(b.t.lots), n(b.t.shares), '', n(b.t.amount), `${b.t.won} allotted`, '']],
+        didParseCell: (x) => { allotCell(x, 9); if ([0, 5, 6, 7, 8].includes(x.column.index)) x.cell.styles.halign = 'right'; if (x.section === 'body' && x.column.index === 3) { if (x.cell.raw === 'sHNI') { x.cell.styles.fillColor = [207, 234, 234]; x.cell.styles.textColor = [19, 90, 93]; x.cell.styles.fontStyle = 'bold'; } if (x.cell.raw === 'bHNI') { x.cell.styles.fillColor = [211, 226, 245]; x.cell.styles.textColor = [18, 63, 117]; x.cell.styles.fontStyle = 'bold'; } } } });
       if (no.length) {
         let yy = doc.lastAutoTable.finalY + 12; if (yy > H - 50) { doc.addPage(); yy = 50; }
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(90);
@@ -799,10 +810,10 @@
     if (want.has('accDet')) for (const b of d.byAcc) {
       const ap = b.list.filter((c) => c.cat !== 'NONE'), no = b.list.filter((c) => c.cat === 'NONE');
       y = heading(`${b.acc.name}${b.acc.pan ? '  (PAN ' + b.acc.pan + ')' : ''}`, `${b.t.applied} of ${b.t.cells} IPOs applied  |  sHNI ${b.t.shni}  bHNI ${b.t.bhni}  None ${b.t.none}  |  Blocked Rs ${n(b.t.amount)}`);
-      table({ startY: y, head: [['#', 'IPO', 'Type', 'Open', 'Close', 'Category', 'Application no.', 'Lots', 'Shares', 'Upper price', 'Amount blocked', 'Remarks']],
-        body: ap.length ? ap.map((c, i) => [i + 1, c.ipo.name, c.ipo.type || 'Mainboard', fdx(c.ipo.openDate), fdx(c.ipo.closeDate), CATN[c.cat], c.appNo || '-', n(c.lots), n(c.shares), n(c.ipo.priceHigh), n(c.amount), c.remarks]) : [['', 'No applications in this period', '', '', '', '', '', '', '', '', '', '']],
-        foot: [['', `Total · ${b.t.applied} IPOs`, '', '', '', `${b.t.shni} S / ${b.t.bhni} B`, `${ap.filter((c) => c.appNo).length} nos.`, n(b.t.lots), n(b.t.shares), '', n(b.t.amount), '']],
-        didParseCell: (x) => { if ([0, 7, 8, 9, 10].includes(x.column.index)) x.cell.styles.halign = 'right'; catCell(x, 5); } });
+      table({ startY: y, head: [['#', 'IPO', 'Type', 'Open', 'Close', 'Category', 'Application no.', 'Lots', 'Shares', 'Upper price', 'Amount blocked', 'Allotment', 'Remarks']],
+        body: ap.length ? ap.map((c, i) => [i + 1, c.ipo.name, c.ipo.type || 'Mainboard', fdx(c.ipo.openDate), fdx(c.ipo.closeDate), CATN[c.cat], c.appNo || '-', n(c.lots), n(c.shares), n(c.ipo.priceHigh), n(c.amount), ALLOT[c.allot] + (c.allotShares ? ` (${n(c.allotShares)})` : ''), c.remarks]) : [['', 'No applications in this period', '', '', '', '', '', '', '', '', '', '', '']],
+        foot: [['', `Total · ${b.t.applied} IPOs`, '', '', '', `${b.t.shni} S / ${b.t.bhni} B`, `${ap.filter((c) => c.appNo).length} nos.`, n(b.t.lots), n(b.t.shares), '', n(b.t.amount), `${b.t.won} allotted`, '']],
+        didParseCell: (x) => { allotCell(x, 11); if ([0, 7, 8, 9, 10].includes(x.column.index)) x.cell.styles.halign = 'right'; catCell(x, 5); } });
       if (no.length) {
         let yy = doc.lastAutoTable.finalY + 12; if (yy > H - 50) { doc.addPage(); yy = 50; }
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(90);
@@ -829,6 +840,176 @@
     save(`FinDeependence-IPO-${scopeFile(sc)}-${fileStamp()}.pdf`, doc.output('arraybuffer'));
   });
 
+  // ---------- Allotment ----------
+  // Registrar allotment pages. They use CAPTCHAs and don't allow other websites to read them, so the app
+  // opens the right page with the application number copied, and you record the result in one click.
+  const REGISTRARS = [
+    { re: /kfin|karvy/i, name: 'KFin Technologies', url: 'https://ipostatus.kfintech.com/' },
+    { re: /link\s*intime|mufg|mpms/i, name: 'MUFG Intime (Link Intime)', url: 'https://in.mpms.mufg.com/Initial_Offer/public-issues.html' },
+    { re: /bigshare/i, name: 'Bigshare Services', url: 'https://ipo.bigshareonline.com/IPO_Status.html' },
+    { re: /cameo/i, name: 'Cameo Corporate Services', url: 'https://ipo.cameoindia.com/' },
+    { re: /skyline/i, name: 'Skyline Financial Services', url: 'https://www.skylinerta.com/ipo.php' },
+    { re: /purva/i, name: 'Purva Sharegistry', url: 'https://www.purvashare.com/investor-service/ipo-query' },
+    { re: /maashitla/i, name: 'Maashitla Securities', url: 'https://maashitla.com/allotment-status/public-issues' },
+    { re: /integrated/i, name: 'Integrated Registry', url: 'https://www.integratedregistry.in/' },
+  ];
+  const BSE_ALLOT = 'https://www.bseindia.com/investors/appli_check.aspx';
+  function registrarOf(ipo) {
+    if (ipo.allotUrl) return { name: ipo.registrar || 'Your allotment link', url: ipo.allotUrl, known: true };
+    const r = REGISTRARS.find((x) => x.re.test(ipo.registrar || ''));
+    return r ? { name: r.name, url: r.url, known: true } : { name: ipo.registrar ? `${ipo.registrar} (link not known, using BSE)` : 'BSE allotment', url: BSE_ALLOT, known: false };
+  }
+  // Basis of allotment is normally fixed one working day after the issue closes (T+1).
+  function allotDate(ipo) {
+    if (!ipo.closeDate) return null;
+    const d = new Date(ipo.closeDate + 'T00:00:00Z');
+    do { d.setUTCDate(d.getUTCDate() + 1); } while ([0, 6].includes(d.getUTCDay()));
+    return d.toISOString().slice(0, 10);
+  }
+  const ALLOT = { ALLOTTED: 'Allotted', NOT: 'Not allotted', PENDING: 'Pending' };
+  const allotOf = (app) => (app?.allot?.status && ALLOT[app.allot.status] ? app.allot.status : 'PENDING');
+  // An allotted HNI applicant normally receives the minimum NII application size (the sHNI minimum).
+  const defaultAllotShares = (ipo) => { const r = range(ipo, 'SHNI'); return r ? r.min * Number(ipo.lotSize) : Number(ipo.lotSize) || null; };
+  const allotPill = (st) => `<span class="pill AL-${st}">${ALLOT[st]}</span>`;
+
+  let aSel = store.get('allotIpo') || null;
+  let walk = null; // { ipoId, queue: [accId], i }
+  const appliedRows = (ipo) => sortedAccounts().map((acc) => ({ acc, app: S.apps.get(appKey(ipo.id, acc.id)) })).filter((x) => x.app?.category);
+
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); return true; } catch { return false; }
+  }
+  async function openCheck(ipo, acc, app) {
+    const key = app.appNo || acc.pan || '';
+    if (!key) { toast(`Add the application no. or PAN for ${acc.name} first`, true); return false; }
+    const ok = await copyText(key);
+    const reg = registrarOf(ipo);
+    window.open(reg.url, 'fd-registrar');
+    toast(ok ? `${app.appNo ? 'Application no.' : 'PAN'} ${key} copied. Paste it on the ${reg.name} page.` : `Open ${reg.name} and enter ${key}`);
+    return true;
+  }
+  async function saveAllot(ipo, accId, status, shares) {
+    const k = appKey(ipo.id, accId), cur = S.apps.get(k);
+    if (!cur?.category) return;
+    const allot = status === 'PENDING' ? null : { status, shares: status === 'ALLOTTED' ? (Number(shares) > 0 ? Math.round(Number(shares)) : defaultAllotShares(ipo)) : 0, checkedAt: new Date().toISOString() };
+    try { await db.collection('apps').doc(k).set({ ...cur, allot, updatedAt: new Date().toISOString() }); }
+    catch { toast('Could not save. Try again.', true); }
+  }
+
+  $('#allotFilter').addEventListener('change', renderAllot);
+  function renderAllot() {
+    const list = sortedIpos().filter((i) => appliedRows(i).length).sort((a, b) => String(b.closeDate || '').localeCompare(String(a.closeDate || '')));
+    if (aSel && !list.some((i) => i.id === aSel)) aSel = null;
+    if (!aSel) aSel = (list.find((i) => status(i) === 'Closed') || list[0] || {}).id || null;
+    $('#allotList').innerHTML = !S.loaded.ipos ? '<p class="muted">Loading IPOs…</p>' : list.length ? list.map((i) => {
+      const rows = appliedRows(i), done = rows.filter((x) => allotOf(x.app) !== 'PENDING').length, won = rows.filter((x) => allotOf(x.app) === 'ALLOTTED').length;
+      return `<button class="ipo-btn ${i.id === aSel ? 'sel' : ''}" data-id="${esc(i.id)}">
+        <span class="nm">${esc(i.name)} <span class="pill ${status(i)}">${status(i)}</span>${i.type === 'SME' ? ' <span class="pill SME">SME</span>' : ''}</span>
+        <span class="sub">Allotment ${fd(allotDate(i))} · ${esc(registrarOf(i).name.split(' (')[0])}</span>
+        <span class="sub">${done} of ${rows.length} checked · ${won} allotted</span>
+      </button>`; }).join('') : '<p class="muted">No applications yet. Mark sHNI or bHNI for accounts on the Apply tab first.</p>';
+    $$('#allotList .ipo-btn').forEach((b) => b.addEventListener('click', () => { aSel = b.dataset.id; store.set('allotIpo', aSel); walk = null; renderAllot(); }));
+    renderAllotPanel();
+  }
+
+  function renderAllotPanel() {
+    const p = $('#allotPanel');
+    const ipo = S.ipos.find((i) => i.id === aSel);
+    if (!ipo) { p.innerHTML = '<div class="empty"><b>Pick an IPO on the left</b><span>IPOs where you applied from at least one account are listed.</span></div>'; return; }
+    const reg = registrarOf(ipo), rows = appliedRows(ipo), price = Number(ipo.priceHigh) || 0;
+    const t = { applied: rows.length, won: 0, lost: 0, pend: 0, shares: 0, blocked: 0 };
+    for (const x of rows) { const st = allotOf(x.app); if (st === 'ALLOTTED') { t.won++; t.shares += Number(x.app.allot.shares) || 0; } else if (st === 'NOT') t.lost++; else t.pend++; t.blocked += calc(ipo, x.app).amount || 0; }
+    const allottedAmt = t.shares * price, ad = allotDate(ipo), before = ad && istToday() < ad;
+    const f = $('#allotFilter').value;
+    const shown = rows.filter((x) => !f || allotOf(x.app) === f);
+    p.innerHTML = `
+      <div class="panel-head">
+        <div><h2>${esc(ipo.name)} <span class="pill ${status(ipo)}">${status(ipo)}</span></h2>
+          <p class="muted">Registrar: <b>${esc(ipo.registrar || 'not listed')}</b> · Allotment expected <b>${fd(ad)}</b>${before ? ' (results are usually out by the evening)' : ''}</p></div>
+        <div class="row">
+          <a class="btn" href="${esc(reg.url)}" target="fd-registrar" rel="noopener">Open ${esc(reg.name.split(' (')[0])} ↗</a>
+          <button class="primary" id="walkStart" ${rows.length ? '' : 'disabled'}>Check all accounts</button>
+        </div>
+      </div>
+      ${reg.known ? '' : `<p class="notice">No allotment link is saved for this registrar, so the BSE allotment page is used. You can paste the registrar's link in the IPOs tab (Edit → Allotment link).</p>`}
+      <div class="tiles">
+        <div class="fact"><small>Applied</small><b>${t.applied}</b></div>
+        <div class="fact AL-ALLOTTED"><small>Allotted</small><b>${t.won}</b><span class="hint">${t.applied ? Math.round((t.won / t.applied) * 100) : 0}% success</span></div>
+        <div class="fact"><small>Not allotted</small><b>${t.lost}</b></div>
+        <div class="fact soon"><small>Pending check</small><b>${t.pend}</b></div>
+        <div class="fact"><small>Shares allotted</small><b>${inr(t.shares)}</b><span class="hint">${rs(allottedAmt)} at ₹${inr(price)}</span></div>
+        <div class="fact"><small>To be unblocked</small><b>${rs(Math.max(0, t.blocked - allottedAmt))}</b><span class="hint">of ${rs(t.blocked)} blocked</span></div>
+      </div>
+      <div id="walkCard"></div>
+      <div class="tbl"><table>
+        <thead><tr><th>#</th><th>Account</th><th>Application no.</th><th></th><th>Allotment result</th><th class="num">Shares allotted</th></tr></thead>
+        <tbody>${shown.map((x, i) => {
+          const st = allotOf(x.app);
+          return `<tr data-acc="${esc(x.acc.id)}" class="c-${x.app.category}${walk && walk.queue[walk.i] === x.acc.id ? ' walking' : ''}">
+            <td class="num">${i + 1}</td>
+            <td class="wrap">${esc(x.acc.name)}<div class="muted mono" style="font-size:11px">${pill(x.app.category)} ${esc(x.acc.pan || '')}</div></td>
+            <td class="mono">${esc(x.app.appNo) || '<span class="muted">not entered</span>'}</td>
+            <td><button class="chk">Check allotment ↗</button></td>
+            <td><div class="seg">
+              <button data-al="ALLOTTED" class="${st === 'ALLOTTED' ? 'on' : ''}">Allotted</button><button data-al="NOT" class="${st === 'NOT' ? 'on' : ''}">Not allotted</button><button data-al="PENDING" class="${st === 'PENDING' ? 'on' : ''}" title="Pending: clear the result">Pending</button>
+            </div>${x.app.allot?.checkedAt ? `<div class="muted" style="font-size:11px;margin-top:3px">Recorded ${new Date(x.app.allot.checkedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>` : ''}</td>
+            <td class="num">${st === 'ALLOTTED' ? `<input class="ashares" type="number" min="1" step="1" value="${esc(x.app.allot.shares ?? '')}" aria-label="Shares allotted">` : '–'}</td>
+          </tr>`; }).join('') || '<tr><td colspan="6" class="muted">No accounts match this filter.</td></tr>'}</tbody>
+      </table></div>`;
+    const rowAcc = (el) => el.closest('tr').dataset.acc;
+    const get = (accId) => rows.find((x) => x.acc.id === accId);
+    $$('button.chk', p).forEach((b) => b.addEventListener('click', () => { const x = get(rowAcc(b)); openCheck(ipo, x.acc, x.app); }));
+    $$('.seg button[data-al]', p).forEach((b) => b.addEventListener('click', () => saveAllot(ipo, rowAcc(b), b.dataset.al)));
+    $$('input.ashares', p).forEach((inp) => inp.addEventListener('change', () => saveAllot(ipo, rowAcc(inp), 'ALLOTTED', inp.value)));
+    $('#walkStart').addEventListener('click', () => {
+      const pend = rows.filter((x) => allotOf(x.app) === 'PENDING');
+      const queue = (pend.length ? pend : rows).map((x) => x.acc.id);
+      walk = { ipoId: ipo.id, queue, i: 0 };
+      const x = get(queue[0]); openCheck(ipo, x.acc, x.app);
+      renderAllotPanel();
+    });
+    renderWalk(ipo, rows);
+  }
+
+  // Master check: steps through every account with the registrar page open in one reused tab.
+  function renderWalk(ipo, rows) {
+    const c = $('#walkCard');
+    if (!walk || walk.ipoId !== ipo.id) { c.innerHTML = ''; return; }
+    if (walk.i >= walk.queue.length) {
+      c.innerHTML = `<div class="walk done"><b>All ${walk.queue.length} accounts done.</b> <button id="walkClose">Close</button></div>`;
+      $('#walkClose').addEventListener('click', () => { walk = null; renderAllotPanel(); });
+      return;
+    }
+    const x = rows.find((r) => r.acc.id === walk.queue[walk.i]);
+    if (!x) { walk.i++; return renderWalk(ipo, rows); }
+    const key = x.app.appNo || x.acc.pan || '';
+    c.innerHTML = `<div class="walk">
+      <div class="walk-top"><span class="lbl">Checking ${walk.i + 1} of ${walk.queue.length}</span><div class="bar"><span style="width:${Math.round((walk.i / walk.queue.length) * 100)}%"></span></div></div>
+      <div class="walk-main">
+        <div><b class="who">${esc(x.acc.name)}</b> ${pill(x.app.category)}<div class="muted">${x.app.appNo ? 'Application no.' : 'PAN'} <span class="mono key">${esc(key) || 'not entered'}</span> · paste it on the ${esc(registrarOf(ipo).name.split(' (')[0])} page</div></div>
+        <div class="row">
+          <button id="wOpen">Open page &amp; copy ↗</button>
+          <label class="wsh">Shares <input type="number" id="wShares" min="1" step="1" value="${esc(x.app.allot?.shares || defaultAllotShares(ipo) || '')}"></label>
+          <button class="primary" id="wWon">Allotted</button>
+          <button id="wLost">Not allotted</button>
+          <button id="wSkip">Skip</button>
+          <button class="danger" id="wStop">Stop</button>
+        </div>
+      </div></div>`;
+    const next = async (status) => {
+      if (status) await saveAllot(ipo, x.acc.id, status, status === 'ALLOTTED' ? $('#wShares').value : 0);
+      walk.i++;
+      const n = walk.i < walk.queue.length && rows.find((r) => r.acc.id === walk.queue[walk.i]);
+      if (n) { const k = n.app.appNo || n.acc.pan; if (k && await copyText(k)) toast(`${n.app.appNo ? 'Application no.' : 'PAN'} ${k} copied for ${n.acc.name}`); }
+      renderAllotPanel();
+    };
+    $('#wOpen').addEventListener('click', () => openCheck(ipo, x.acc, x.app));
+    $('#wWon').addEventListener('click', () => next('ALLOTTED'));
+    $('#wLost').addEventListener('click', () => next('NOT'));
+    $('#wSkip').addEventListener('click', () => next(null));
+    $('#wStop').addEventListener('click', () => { walk = null; renderAllotPanel(); });
+  }
+
   // ---------- IPOs ----------
   const form = $('#ipoForm');
   $('#addIpo').addEventListener('click', () => { form.reset(); $('#fId').value = ''; form.hidden = false; $('#fName').focus(); });
@@ -844,6 +1025,7 @@
       name: $('#fName').value.trim(), symbol: $('#fSymbol').value.trim().toUpperCase(), type: $('#fType').value,
       openDate: $('#fOpen').value || null, closeDate: $('#fClose').value || null,
       priceLow: num($('#fLow').value), priceHigh: num($('#fHigh').value), lotSize: num($('#fLot').value),
+      registrar: $('#fReg').value.trim() || null, allotUrl: /^https:\/\//i.test($('#fAllot').value.trim()) ? $('#fAllot').value.trim() : null,
       edited: true, updatedAt: new Date().toISOString(),
     };
     if (!body.name) return toast('Enter the company name', true);
@@ -875,7 +1057,7 @@
     $$('[data-edit]').forEach((b) => b.addEventListener('click', () => {
       const i = S.ipos.find((x) => x.id === b.dataset.edit); if (!i) return;
       $('#fId').value = i.id; $('#fName').value = i.name || ''; $('#fSymbol').value = i.symbol || ''; $('#fType').value = i.type || 'Mainboard';
-      $('#fOpen').value = i.openDate || ''; $('#fClose').value = i.closeDate || ''; $('#fLow').value = i.priceLow ?? ''; $('#fHigh').value = i.priceHigh ?? ''; $('#fLot').value = i.lotSize ?? '';
+      $('#fOpen').value = i.openDate || ''; $('#fClose').value = i.closeDate || ''; $('#fLow').value = i.priceLow ?? ''; $('#fHigh').value = i.priceHigh ?? ''; $('#fLot').value = i.lotSize ?? ''; $('#fReg').value = i.registrar || ''; $('#fAllot').value = i.allotUrl || '';
       form.hidden = false; $('#fName').focus();
     }));
     $$('[data-del]').forEach((b) => b.addEventListener('click', async () => {

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-03T11:38:53.533Z",
+  "updatedAt": "2026-11-04T08:41:08.738Z",
   "source": "NSE",
   "errors": [],
   "ipos": [
@@ -14,7 +14,8 @@
       "priceLow": 88,
       "priceHigh": 94,
       "lotSize": 1200,
-      "syncedAt": "2026-11-03T11:38:53.525Z"
+      "syncedAt": "2026-11-04T08:40:37.933Z",
+      "registrar": "Cameo Corporate Services Limited"
     },
     {
       "id": "nse-HGSINDIALT",
@@ -27,7 +28,8 @@
       "priceLow": 114,
       "priceHigh": 120,
       "lotSize": 1200,
-      "syncedAt": "2026-11-03T11:38:53.526Z"
+      "syncedAt": "2026-11-03T11:38:53.526Z",
+      "registrar": "Kfin Technologies Limited"
     },
     {
       "id": "nse-MAXENGS",
@@ -40,7 +42,8 @@
       "priceLow": 150,
       "priceHigh": 158,
       "lotSize": 800,
-      "syncedAt": "2026-11-03T11:38:53.526Z"
+      "syncedAt": "2026-11-03T11:38:53.526Z",
+      "registrar": "KFin Technologies Limited"
     },
     {
       "id": "nse-BCSSL",
@@ -53,7 +56,8 @@
       "priceLow": 78,
       "priceHigh": 82,
       "lotSize": 182,
-      "syncedAt": "2026-11-03T11:11:18.063Z"
+      "syncedAt": "2026-11-03T11:11:18.063Z",
+      "registrar": "KFin Technologies Limited"
     }
   ]
 }

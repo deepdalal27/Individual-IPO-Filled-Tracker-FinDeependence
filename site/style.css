@@ -167,3 +167,29 @@ input.appno.dup { border-color: var(--danger); background: rgba(179,38,30,.08); 
 td.warn { color: var(--soon); font-weight: 600; }
 label.dl { display: flex; align-items: center; gap: 6px; font: 700 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 label.dl select { font: 500 13px var(--sans); letter-spacing: 0; text-transform: none; color: var(--fg); }
+
+.pill.AL-ALLOTTED { background: var(--open-soft); color: var(--open); }
+.pill.AL-NOT { background: var(--closed-soft); color: var(--muted); }
+.pill.AL-PENDING { background: var(--soon-soft); color: var(--soon); }
+.fact.AL-ALLOTTED { background: var(--open-soft); } .fact.AL-ALLOTTED small { color: var(--open); }
+.fact.soon { background: var(--soon-soft); } .fact.soon small { color: var(--soon); }
+a.btn { display: inline-block; text-decoration: none; color: var(--fg); border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 7px 12px; }
+a.btn:hover { border-color: var(--muted); }
+input.ashares { width: 90px; text-align: right; font-family: var(--mono); }
+.seg button.on[data-al="ALLOTTED"] { background: var(--open); color: var(--bg); font-weight: 700; }
+.seg button.on[data-al="NOT"] { background: var(--muted); color: var(--bg); font-weight: 700; }
+.seg button.on[data-al="PENDING"] { background: var(--surface-2); }
+tr.walking td { background: var(--soon-soft); }
+.walk { border: 2px solid var(--accent); border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; background: var(--surface); display: flex; flex-direction: column; gap: 10px; }
+.walk.done { flex-direction: row; align-items: center; justify-content: space-between; border-color: var(--open); }
+.walk-top { display: flex; align-items: center; gap: 12px; }
+.walk .lbl { font: 700 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--teal); white-space: nowrap; }
+.walk .bar { flex: 1; height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.walk .bar span { display: block; height: 100%; background: var(--accent); }
+.walk-main { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
+.walk .who { font: 800 18px/1.2 var(--display); }
+.walk .key { color: var(--fg); font-weight: 700; }
+.walk label.wsh { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.walk label.wsh input { width: 90px; font-family: var(--mono); text-align: right; }
+.seg button.on[data-al="PENDING"] { background: var(--soon-soft); color: var(--soon); font-weight: 700; }
+td.wrap { white-space: normal; min-width: 150px; }
