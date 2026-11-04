@@ -26,6 +26,8 @@ jobs:
           node-version: 22
       - name: Run tests
         run: npm test
+      - name: Build allotment auto-fill script
+        run: npm run build:helper
       - name: Fetch latest IPOs from NSE
         run: npm run sync
       - name: Save updated IPO list

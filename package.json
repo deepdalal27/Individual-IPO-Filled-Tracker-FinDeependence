@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node scripts/serve.js",
     "sync": "node scripts/sync-ipos.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "build:helper": "node scripts/build-helper.js"
   },
   "repository": {
     "type": "git",

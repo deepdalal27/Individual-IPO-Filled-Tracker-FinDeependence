@@ -21,7 +21,10 @@ and gives IPO-wise reports you can download as **Excel** or **PDF**.
 - **Allotment tab:** for each IPO you applied in, every account with its application number.
   **Check allotment ↗** copies the application number (or PAN if no number is entered) and opens the IPO's
   registrar page (KFin, MUFG Intime, Bigshare, Cameo, Skyline, Purva, Maashitla, Integrated; BSE as fallback).
-  Paste the number there, then click **Allotted** or **Not allotted**. **Check all accounts** steps through every
+  With the one-time **auto-fill** setup (a bookmark button, or the Tampermonkey script `site/fd-allotment.user.js`),
+  the registrar page picks the IPO, chooses Application No. or PAN and fills the number by itself. You type the CAPTCHA
+  and submit. The details travel after `#` in the address, which is never sent to the registrar's server.
+  Then click **Allotted** or **Not allotted**. **Check all accounts** steps through every
   pending account one by one, copying each number for you. The tab shows allotted / not allotted / pending counts,
   shares allotted and the amount to be unblocked. Registrar pages use CAPTCHAs and don't let other websites read them,
   so the result is recorded with one click instead of being fetched automatically. Allotment results appear in the

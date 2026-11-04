@@ -876,6 +876,14 @@
   let walk = null; // { ipoId, queue: [accId], i }
   const appliedRows = (ipo) => sortedAccounts().map((acc) => ({ acc, app: S.apps.get(appKey(ipo.id, acc.id)) })).filter((x) => x.app?.category);
 
+  // Bookmarklet = the helper script wrapped in a javascript: link.
+  let bmCache = null;
+  async function bookmarklet() {
+    if (bmCache) return bmCache;
+    try { const code = await (await fetch('allot-helper.js', { cache: 'no-cache' })).text(); bmCache = 'javascript:' + encodeURIComponent(code.replace(/^\s*\/\*[\s\S]*?\*\/\s*/, '')); }
+    catch { bmCache = null; }
+    return bmCache;
+  }
   async function copyText(t) {
     try { await navigator.clipboard.writeText(t); return true; } catch { return false; }
   }
@@ -884,8 +892,10 @@
     if (!key) { toast(`Add the application no. or PAN for ${acc.name} first`, true); return false; }
     const ok = await copyText(key);
     const reg = registrarOf(ipo);
-    window.open(reg.url, 'fd-registrar');
-    toast(ok ? `${app.appNo ? 'Application no.' : 'PAN'} ${key} copied. Paste it on the ${reg.name} page.` : `Open ${reg.name} and enter ${key}`);
+    const payload = { i: ipo.name, s: ipo.symbol || '', a: app.appNo || '', p: acc.pan || '', n: acc.name };
+    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    window.open(reg.url.split('#')[0] + '#fdipo=' + b64, 'fd-registrar');
+    toast(`${app.appNo ? 'Application no.' : 'PAN'} ${key} ${ok ? 'copied' : 'ready'} for ${acc.name}. With auto-fill set up, the ${reg.name.split(' (')[0]} page fills itself; just type the CAPTCHA.`);
     return true;
   }
   async function saveAllot(ipo, accId, status, shares) {
@@ -940,6 +950,21 @@
         <div class="fact"><small>Shares allotted</small><b>${inr(t.shares)}</b><span class="hint">${rs(allottedAmt)} at ₹${inr(price)}</span></div>
         <div class="fact"><small>To be unblocked</small><b>${rs(Math.max(0, t.blocked - allottedAmt))}</b><span class="hint">of ${rs(t.blocked)} blocked</span></div>
       </div>
+      <details class="setup" id="afSetup" ${store.get('afSetupSeen') ? '' : 'open'}>
+        <summary><b>Auto-fill the registrar form</b> <span class="muted">· one-time setup so the IPO and application number fill in by themselves</span></summary>
+        <div class="setup-body">
+          <div class="opt">
+            <span class="lbl">Option 1 · Bookmark button (any desktop browser)</span>
+            <p>Drag this button onto your bookmarks bar: <a class="bm" id="bmLink" href="#" title="Drag me to the bookmarks bar">⚡ FD Allotment Fill</a></p>
+            <p class="muted">Then click <b>Check allotment</b> here, and on the registrar page click the bookmark once. It picks the IPO, chooses Application No. (or PAN), fills the number and puts the cursor in the CAPTCHA box. In <b>Check all accounts</b>, the registrar tab updates for each next account. Click the bookmark again if the page reloads.</p>
+          </div>
+          <div class="opt">
+            <span class="lbl">Option 2 · Fully automatic (Chrome / Edge / Firefox with Tampermonkey)</span>
+            <p>Install the free <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Tampermonkey</a> extension, then <a href="fd-allotment.user.js" target="_blank" rel="noopener"><b>install the FinDeependence auto-fill script</b></a> and click Install. Registrar pages opened from here then fill themselves, with no click needed.</p>
+          </div>
+          <p class="muted small">The IPO name and number travel in the page address after "#", which browsers never send to the registrar's server. You still type the CAPTCHA and press Submit; that part is deliberately left to you. If a registrar changes its page and something isn't filled, the number is also copied, so you can paste it.</p>
+        </div>
+      </details>
       <div id="walkCard"></div>
       <div class="tbl"><table>
         <thead><tr><th>#</th><th>Account</th><th>Application no.</th><th></th><th>Allotment result</th><th class="num">Shares allotted</th></tr></thead>
@@ -958,6 +983,9 @@
       </table></div>`;
     const rowAcc = (el) => el.closest('tr').dataset.acc;
     const get = (accId) => rows.find((x) => x.acc.id === accId);
+    $('#afSetup').addEventListener('toggle', (e) => { if (!e.target.open) store.set('afSetupSeen', '1'); });
+    bookmarklet().then((href) => { const a = $('#bmLink'); if (a && href) a.href = href; });
+    $('#bmLink').addEventListener('click', (e) => { e.preventDefault(); toast('Drag this button to your bookmarks bar, then click it on the registrar page', false); });
     $$('button.chk', p).forEach((b) => b.addEventListener('click', () => { const x = get(rowAcc(b)); openCheck(ipo, x.acc, x.app); }));
     $$('.seg button[data-al]', p).forEach((b) => b.addEventListener('click', () => saveAllot(ipo, rowAcc(b), b.dataset.al)));
     $$('input.ashares', p).forEach((inp) => inp.addEventListener('change', () => saveAllot(ipo, rowAcc(inp), 'ALLOTTED', inp.value)));
@@ -990,8 +1018,8 @@
         <div class="row">
           <button id="wOpen">Open page &amp; copy ↗</button>
           <label class="wsh">Shares <input type="number" id="wShares" min="1" step="1" value="${esc(x.app.allot?.shares || defaultAllotShares(ipo) || '')}"></label>
-          <button class="primary" id="wWon">Allotted</button>
-          <button id="wLost">Not allotted</button>
+          <button class="primary" id="wWon">Allotted → next</button>
+          <button id="wLost">Not allotted → next</button>
           <button id="wSkip">Skip</button>
           <button class="danger" id="wStop">Stop</button>
         </div>
@@ -1000,7 +1028,7 @@
       if (status) await saveAllot(ipo, x.acc.id, status, status === 'ALLOTTED' ? $('#wShares').value : 0);
       walk.i++;
       const n = walk.i < walk.queue.length && rows.find((r) => r.acc.id === walk.queue[walk.i]);
-      if (n) { const k = n.app.appNo || n.acc.pan; if (k && await copyText(k)) toast(`${n.app.appNo ? 'Application no.' : 'PAN'} ${k} copied for ${n.acc.name}`); }
+      if (n) await openCheck(ipo, n.acc, n.app);
       renderAllotPanel();
     };
     $('#wOpen').addEventListener('click', () => openCheck(ipo, x.acc, x.app));
