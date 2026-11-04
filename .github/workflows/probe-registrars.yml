@@ -1,0 +1,19 @@
+name: Check registrar allotment pages
+
+# Manual, one-off. Reads public registrar pages only; no personal data is used.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check each registrar page for a CAPTCHA
+        run: node scripts/probe-registrars.js
