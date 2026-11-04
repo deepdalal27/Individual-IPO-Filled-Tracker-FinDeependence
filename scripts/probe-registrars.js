@@ -1,57 +1,46 @@
-// One-off check (run by GitHub Actions): does each registrar's public allotment page use a CAPTCHA?
-// Reads public pages only. No PAN, application number or other personal data is sent anywhere.
-const PAGES = [
-  ['KFin Technologies', 'https://ipostatus.kfintech.com/'],
-  ['MUFG Intime (Link Intime)', 'https://in.mpms.mufg.com/Initial_Offer/public-issues.html'],
-  ['Bigshare Services', 'https://ipo.bigshareonline.com/IPO_Status.html'],
-  ['Cameo Corporate Services', 'https://ipo.cameoindia.com/'],
-  ['Skyline Financial Services', 'https://www.skylinerta.com/ipo.php'],
-  ['Purva Sharegistry', 'https://www.purvashare.com/investor-service/ipo-query'],
-  ['Maashitla Securities', 'https://maashitla.com/allotment-status/public-issues'],
-  ['Integrated Registry', 'https://www.integratedregistry.in/'],
-  ['BSE allotment', 'https://www.bseindia.com/investors/appli_check.aspx'],
-];
+// One-off check (run by GitHub Actions): does each registrar's public allotment lookup use a CAPTCHA?
+// Reads public pages and their scripts only. No PAN, application number or other personal data is sent.
 const UA = { 'User-Agent': 'findeependence-ipo-ledger/1.0 (allotment page check)' };
-const CAPTCHA = /captcha|recaptcha|hcaptcha|turnstile|g-recaptcha|cf-chl|challenge-platform/i;
+const CAP = /captcha|recaptcha|hcaptcha|turnstile|securitycode|security code|verification code|otp/i;
 
 async function get(url) {
   const res = await fetch(url, { headers: UA, redirect: 'follow', signal: AbortSignal.timeout(25000) });
-  return { status: res.status, url: res.url, type: res.headers.get('content-type') || '', body: await res.text() };
+  return { status: res.status, url: res.url, body: await res.text() };
 }
 const uniq = (a) => [...new Set(a)];
+function around(text, re, width = 110, max = 8) {
+  const out = []; let m; const g = new RegExp(re.source, 'gi');
+  while ((m = g.exec(text)) && out.length < max) out.push(text.slice(Math.max(0, m.index - width), m.index + width).replace(/\s+/g, ' '));
+  return uniq(out);
+}
+function scriptsOf(html, base) {
+  return uniq((html.match(/<script[^>]+src=["']([^"']+)["']/gi) || []).map((t) => t.match(/src=["']([^"']+)["']/i)[1]))
+    .map((s) => { try { return new URL(s, base).href; } catch { return null; } }).filter(Boolean);
+}
+async function deep(name, url, keys) {
+  console.log(`\n=== ${name} — ${url}`);
+  try {
+    const r = await get(url);
+    console.log(`status ${r.status} · ${r.body.length} bytes · final ${r.url}`);
+    const srcs = scriptsOf(r.body, r.url);
+    console.log('scripts: ' + srcs.map((s) => new URL(s).pathname).join(' '));
+    const texts = [['page', r.body]];
+    for (const s of srcs.filter((s) => new URL(s).hostname === new URL(r.url).hostname).slice(0, 6)) {
+      try { const j = await get(s); texts.push([new URL(s).pathname, j.body]); } catch (e) { console.log('script failed ' + s); }
+    }
+    for (const [where, t] of texts) {
+      const cap = around(t, CAP, 90, 5);
+      console.log(`[${where}] ${t.length} bytes · captcha/otp mentions: ${cap.length}`);
+      cap.forEach((c) => console.log('   cap · ' + c));
+      for (const k of keys) around(t, new RegExp(k), 120, 4).forEach((c) => console.log(`   ${k} · ${c}`));
+    }
+  } catch (e) { console.log('could not load: ' + e.message); }
+}
 
 (async () => {
-  for (const [name, url] of PAGES) {
-    console.log(`\n=== ${name} — ${url}`);
-    try {
-      const r = await get(url);
-      const html = r.body;
-      const title = (html.match(/<title[^>]*>([^<]*)/i) || [])[1] || '';
-      console.log(`status ${r.status} · final ${r.url} · ${html.length} bytes · title "${title.trim().slice(0, 80)}"`);
-      const capLines = uniq((html.match(new RegExp(`.{0,60}(${CAPTCHA.source}).{0,60}`, 'gi')) || []).map((s) => s.replace(/\s+/g, ' ').trim())).slice(0, 6);
-      console.log(`captcha on page: ${capLines.length ? 'YES' : 'no'}`);
-      capLines.forEach((l) => console.log('   · ' + l.slice(0, 140)));
-      const forms = (html.match(/<form[^>]*>/gi) || []).slice(0, 5);
-      forms.forEach((f) => console.log('form: ' + f.slice(0, 160)));
-      const inputs = uniq((html.match(/<(input|select)[^>]*(name|id)="[^"]+"[^>]*>/gi) || []).map((t) => (t.match(/(?:name|id)="([^"]+)"/i) || [])[1])).slice(0, 25);
-      if (inputs.length) console.log('fields: ' + inputs.join(', '));
-      // Same-site scripts: look for CAPTCHA use and the endpoint the page submits to.
-      const base = new URL(r.url);
-      const scripts = uniq((html.match(/<script[^>]+src="([^"]+)"/gi) || []).map((t) => t.match(/src="([^"]+)"/i)[1]))
-        .map((s) => { try { return new URL(s, base); } catch { return null; } })
-        .filter((u) => u && u.hostname.endsWith(base.hostname.split('.').slice(-2).join('.'))).slice(0, 6);
-      const ends = uniq((html.match(/["'`](\/?[A-Za-z0-9_\-./]*(?:api|Api|API|asmx|ashx|aspx\/[A-Za-z]+|Search[A-Za-z]*|Get[A-Za-z]*Status)[A-Za-z0-9_\-./]*)["'`]/g) || []).map((s) => s.slice(1, -1))).slice(0, 12);
-      for (const s of scripts) {
-        try {
-          const js = (await get(s.href)).body;
-          const cap = CAPTCHA.test(js);
-          const e = uniq((js.match(/["'`](\/?[A-Za-z0-9_\-./]*(?:api|Api|API|asmx|ashx|Search[A-Za-z]*|Get[A-Za-z]*Status)[A-Za-z0-9_\-./]*)["'`]/g) || []).map((x) => x.slice(1, -1))).slice(0, 10);
-          console.log(`script ${s.pathname.slice(0, 70)} · ${js.length} bytes · captcha ${cap ? 'YES' : 'no'}${e.length ? ' · endpoints ' + e.join(' ') : ''}`);
-        } catch (err) { console.log(`script ${s.pathname}: ${err.message}`); }
-      }
-      if (ends.length) console.log('endpoints in page: ' + ends.join(' '));
-    } catch (e) {
-      console.log('could not load: ' + e.message);
-    }
-  }
+  await deep('KFin Technologies', 'https://ipostatus.kfintech.com/', ['api', 'allot', 'pan']);
+  await deep('Bigshare Services', 'https://ipo.bigshareonline.com/IPO_Status.html', ['FetchIpodetails', 'Data\\.aspx', 'txtapplication', 'btn_Search']);
+  await deep('Cameo Corporate Services', 'https://ipo.cameoindia.com/', ['https?://[a-z0-9.\\-]+/[a-z0-9_\\-/]*', 'allot', 'applicationno']);
+  await deep('Skyline (search page)', 'https://www.skylinerta.com/display_application.php', ['<input', '<form', 'action=']);
+  await deep('Maashitla Securities', 'https://maashitla.com/allotment-status/public-issues', ['allot', '/api/', 'https?://[a-z0-9.\\-]+/api']);
 })();
