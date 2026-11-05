@@ -7,10 +7,12 @@ and gives IPO-wise reports you can download as **Excel** or **PDF**.
 
 ## How it works
 
-- **New IPOs arrive automatically.** A GitHub Actions workflow
-  (`.github/workflows/pages.yml`) runs every hour. It pulls current and upcoming mainboard and SME
-  IPOs from NSE (NSE's feed also lists BSE SME issues) (dates, price band, lot size) into `site/ipos.json`, then republishes the site
-  on GitHub Pages. You can also run it straight away from **Actions → Update IPOs and publish site → Run workflow**.
+- **New IPOs arrive automatically**, mainboard and SME, NSE and BSE. A GitHub Actions workflow
+  (`.github/workflows/pages.yml`) runs about every 30 minutes and merges three free public sources into `site/ipos.json`:
+  NSE's IPO feed (primary), ipopremium.in IPO pages (adds BSE SME / BSE-only IPOs with price band, lot size,
+  dates and registrar), and investorgain.com's live IPO list (fills any gaps). Pages that show a bot check are
+  skipped, never bypassed. The app shows a **New IPOs** alert for open and upcoming IPOs you haven't seen yet, and
+  when the list was last checked.
 - **Apply tab:** pick the IPO, then click **sHNI**, **bHNI** or **None** for each account. Lots
   default to the category minimum at the upper price band:
   - sHNI minimum = the fewest lots above ₹2,00,000 (maximum ₹10,00,000)

@@ -1,3 +1,4 @@
+[hidden] { display: none !important; }
 /* Layout: FinDeependence navy brand band with tabs; IPO rail + account grid on Apply; summary-first Reports. Brand tokens from FinDeependence Studio. */
 :root {
   --bg: #F6F2E8; --surface: #FFFFFF; --surface-2: #F1EBDD; --line: #E2DACA;
@@ -205,3 +206,5 @@ a.bm { display: inline-block; background: var(--navy); color: #fff; padding: 5px
 .notice.ok { background: var(--open-soft); }
 .notice label.inl { display: inline-flex; gap: 6px; align-items: center; margin-left: 8px; font-weight: 600; }
 .walk-top .danger { margin-left: 8px; }
+#feedInfo { font-size: 11px; margin: 0; }
+#newIpos { align-items: center; }

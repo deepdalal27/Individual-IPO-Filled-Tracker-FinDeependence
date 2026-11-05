@@ -4,7 +4,7 @@ on:
   push:
     branches: [claude/wizardly-darwin-whybnz]
   schedule:
-    - cron: '17 * * * *'   # every hour
+    - cron: '7,37 * * * *'   # twice an hour (GitHub may delay scheduled runs)
   workflow_dispatch:
 
 permissions:

@@ -9,6 +9,7 @@
   const fd = (d) => { if (!d) return '–'; const [y, m, x] = String(d).split('-'); return `${x} ${MON[m - 1]} ${y}`; };
   const fdx = (d) => { if (!d) return ''; const [y, m, x] = String(d).split('-'); return `${x}-${MON[m - 1]}-${y}`; };
   const CAT = { SHNI: 'sHNI', BHNI: 'bHNI' };
+  const exchPill = (i) => (i.type === 'SME' ? ` <span class="pill SME">${esc(i.exchange && /SME/.test(i.exchange) ? i.exchange : 'SME')}</span>` : (i.exchange && /^BSE$/i.test(i.exchange) ? ' <span class="pill MB">BSE</span>' : ''));
   const istToday = () => new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
   const addDays = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
   const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
@@ -83,11 +84,12 @@
     $('#ipoList').innerHTML = !S.loaded.ipos ? '<p class="muted">Loading IPOs…</p>' : list.length ? list.map((i) => {
       const st = status(i), n = appliedCount(i.id);
       return `<button class="ipo-btn ${i.id === sel ? 'sel' : ''}" data-id="${esc(i.id)}">
-        <span class="nm">${esc(i.name)} <span class="pill ${st}">${st}</span>${i.type === 'SME' ? ' <span class="pill SME">SME</span>' : ''}</span>
+        <span class="nm">${esc(i.name)} <span class="pill ${st}">${st}</span>${exchPill(i)}</span>
         <span class="sub">${fd(i.openDate)} – ${fd(i.closeDate)}</span>
         <span class="sub">${i.priceHigh ? '₹' + inr(i.priceHigh) : 'Price TBA'} · Lot ${inr(i.lotSize)} · ${n ? n + ' applied' : 'none applied'}</span>
       </button>`; }).join('') : '<p class="muted">No open or upcoming IPOs. Choose "All" to see older ones, or add an IPO in the IPOs tab.</p>';
     $$('#ipoList .ipo-btn').forEach((b) => b.addEventListener('click', () => { sel = b.dataset.id; store.set('selIpo', sel); renderApply(); }));
+    $('#feedInfo').textContent = feedLine();
     renderPanel();
   }
 
@@ -861,6 +863,7 @@
   }
   // Basis of allotment is normally fixed one working day after the issue closes (T+1).
   function allotDate(ipo) {
+    if (ipo.allotmentDate) return ipo.allotmentDate; // from NSE / ipopremium / investorgain
     if (!ipo.closeDate) return null;
     const d = new Date(ipo.closeDate + 'T00:00:00Z');
     do { d.setUTCDate(d.getUTCDate() + 1); } while ([0, 6].includes(d.getUTCDay()));
@@ -1176,9 +1179,16 @@
     ipoTabSort = `${h.dataset.tsort}-${k === h.dataset.tsort ? (dir === 'asc' ? 'desc' : 'asc') : h.dataset.def}`;
     store.set('ipoTabSort', ipoTabSort); renderIpos();
   });
+  function feedLine() {
+    const at = S.status?.checkedAt || S.feed?.updatedAt;
+    if (!at) return '';
+    const mins = Math.round((Date.now() - new Date(at)) / 60000);
+    const ago = mins < 2 ? 'just now' : mins < 90 ? `${mins} min ago` : `${Math.round(mins / 60)} h ago`;
+    return `IPO list checked ${ago} · NSE, ipopremium.in, investorgain.com`;
+  }
   function renderIpos() {
     const ls = S.feed?.updatedAt || S.ipos.map((i) => i.syncedAt).filter(Boolean).sort().pop();
-    $('#ipoInfo').textContent = `New mainboard IPOs arrive from NSE automatically every hour, with dates, price band and lot size${ls ? ` (last NSE update ${new Date(ls).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST)` : ''}. You only need to add an IPO here if it is missing.`;
+    $('#ipoInfo').textContent = `New mainboard and SME IPOs (NSE and BSE) arrive automatically about every 30 minutes from NSE, ipopremium.in and investorgain.com, with dates, price band, lot size and registrar. ${feedLine()}${ls ? ` (last NSE update ${new Date(ls).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST)` : ''}. You only need to add an IPO here if it is missing.`;
     const list = sortBy(sortedIpos(), ipoTabSort, (i, k) => ({ name: i.name, symbol: i.symbol, type: i.type || 'Mainboard', open: i.openDate, close: i.closeDate, status: status(i), price: i.priceHigh }[k]));
     const [tk, td] = ipoTabSort.split('-');
     const th = (label, key, cls = '', def = 'asc') => `<th class="${cls} sortable${tk === key ? ' on' : ''}" data-tsort="${key}" data-def="${def}">${label}<span class="arr">${tk === key ? (td === 'asc' ? '▲' : '▼') : '↕'}</span></th>`;
@@ -1188,7 +1198,7 @@
         <td><span class="pill ${st}">${st}</span></td>
         <td class="num">${i.priceHigh ? `₹${inr(i.priceLow || i.priceHigh)} – ${inr(i.priceHigh)}` : 'TBA'}</td><td class="num">${inr(i.lotSize)}</td>
         <td class="num">${rS ? `${rS.min} · ${rs(rS.min * a)}` : '–'}</td><td class="num">${rB ? `${rB.min} · ${rs(rB.min * a)}` : '–'}</td>
-        <td>${esc(i.source || 'Manual')}${i.edited && i.source === 'NSE' ? ' (edited)' : ''}</td>
+        <td>${esc(i.source || 'Manual')}${i.edited && i.source !== 'Manual' ? ' (edited)' : ''}${i.exchange ? `<div class="muted" style="font-size:11px">${esc(i.exchange)}</div>` : ''}</td>
         <td><div class="row"><button data-edit="${esc(i.id)}">Edit</button><button class="danger" data-del="${esc(i.id)}">Delete</button></div></td></tr>`; }).join('')
       : `<tr><td colspan="12" class="muted">${S.loaded.ipos ? 'No IPOs yet. Use Add IPO to enter one.' : 'Loading…'}</td></tr>`) + '</tbody>';
     $$('[data-edit]').forEach((b) => b.addEventListener('click', () => {
@@ -1299,7 +1309,26 @@
       S.feed = feed;
     })
     .catch(() => showStatus('Could not load the NSE IPO list. Reload the page; you can still add IPOs by hand in the IPOs tab.'))
-    .finally(() => { S.loaded.ipos = true; refresh(); setTimeout(runAutoAll, 1500); });
+    .finally(() => { S.loaded.ipos = true; refresh(); setTimeout(runAutoAll, 1500); newIpoAlert(); });
+  fetch('status.json?t=' + Date.now(), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((st) => { if (st) { S.status = st; schedule(); } }).catch(() => {});
+
+  // ---------- "New IPOs" alert: open or upcoming IPOs you haven't seen yet ----------
+  function newIpoAlert() {
+    local.meta = local.meta || {};
+    const seen = new Set(local.meta.seenIpos || []);
+    const fresh = S.ipos.filter((i) => status(i) !== 'Closed' && !seen.has(i.id))
+      .sort((a, b) => String(a.closeDate || '').localeCompare(String(b.closeDate || '')));
+    const box = $('#newIpos');
+    if (!fresh.length) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = `<div class="grow"><b>${fresh.length} new IPO${fresh.length > 1 ? 's' : ''}:</b> ${fresh.slice(0, 6).map((i) => `<a href="#" class="go" data-new="${esc(i.id)}">${esc(i.name)}</a> <span class="muted">(${esc(i.type === 'SME' ? (i.exchange || 'SME') : 'Mainboard')} · ${status(i) === 'Open' ? 'open till ' + fd(i.closeDate) : 'opens ' + fd(i.openDate)})</span>`).join(' · ')}${fresh.length > 6 ? ' …' : ''}</div><button id="newSeen">Got it</button>`;
+    $$('[data-new]', box).forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); sel = a.dataset.new; store.set('selIpo', sel); view = 'apply'; store.set('view', view); render(); }));
+    $('#newSeen').addEventListener('click', () => {
+      local.meta.seenIpos = [...new Set([...(local.meta.seenIpos || []), ...S.ipos.map((i) => i.id)])].slice(-400);
+      try { localStorage.setItem(LS_KEY, JSON.stringify(local)); } catch {}
+      box.hidden = true;
+    });
+  }
 
   // ---------- backup / restore ----------
   // ---- Backup as Excel (readable sheets + a hidden copy of the full data, so it can be restored) ----
