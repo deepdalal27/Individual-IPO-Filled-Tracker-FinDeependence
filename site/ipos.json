@@ -1,12 +1,12 @@
 {
-  "updatedAt": "2026-11-05T08:43:12.892Z",
+  "updatedAt": "2026-11-05T08:44:58.613Z",
   "sources": [
     "NSE",
     "ipopremium.in",
     "investorgain.com"
   ],
   "errors": [
-    "investorgain: fetch failed"
+    "ipopremium: bot check shown, skipped this run"
   ],
   "meta": {},
   "ipos": [
@@ -21,14 +21,16 @@
       "priceLow": 88,
       "priceHigh": 94,
       "lotSize": 1200,
-      "syncedAt": "2026-11-05T08:43:07.097Z",
+      "syncedAt": "2026-11-05T08:44:58.607Z",
       "registrar": "Cameo Corporate Services Limited",
       "exchange": "NSE SME",
       "allotmentDate": "2026-11-05",
       "listingDate": "2026-11-09",
       "ippId": 1432,
       "ippSlug": "vedant-poly-fabs-ltd",
-      "ippUrl": "https://www.ipopremium.in/view/ipo/1432/vedant-poly-fabs-ltd"
+      "ippUrl": "https://www.ipopremium.in/view/ipo/1432/vedant-poly-fabs-ltd",
+      "statusCode": "C",
+      "igUrl": "https://www.investorgain.com/gmp/vedant-poly-fabs-ipo/2297/"
     },
     {
       "id": "nse-HGSINDIALT",
@@ -41,14 +43,16 @@
       "priceLow": 114,
       "priceHigh": 120,
       "lotSize": 1200,
-      "syncedAt": "2026-11-05T08:43:01.285Z",
+      "syncedAt": "2026-11-05T08:44:58.607Z",
       "registrar": "Kfin Technologies Limited",
       "exchange": "NSE SME",
       "allotmentDate": "2026-11-04",
       "listingDate": "2026-11-06",
       "ippId": 1429,
       "ippSlug": "hgs",
-      "ippUrl": "https://www.ipopremium.in/view/ipo/1429/hgs"
+      "ippUrl": "https://www.ipopremium.in/view/ipo/1429/hgs",
+      "statusCode": "C",
+      "igUrl": "https://www.investorgain.com/gmp/hgs-india-ipo/2241/"
     },
     {
       "id": "nse-MAXENGS",
@@ -61,14 +65,16 @@
       "priceLow": 150,
       "priceHigh": 158,
       "lotSize": 800,
-      "syncedAt": "2026-11-05T08:43:03.230Z",
+      "syncedAt": "2026-11-05T08:44:58.607Z",
       "registrar": "KFin Technologies Limited",
       "exchange": "NSE SME",
       "allotmentDate": "2026-11-04",
       "listingDate": "2026-11-06",
       "ippId": 1430,
       "ippSlug": "maxwell-engineering-ltd",
-      "ippUrl": "https://www.ipopremium.in/view/ipo/1430/maxwell-engineering-ltd"
+      "ippUrl": "https://www.ipopremium.in/view/ipo/1430/maxwell-engineering-ltd",
+      "statusCode": "C",
+      "igUrl": "https://www.investorgain.com/gmp/maxwell-engineering-solutions-ipo/1965/"
     },
     {
       "id": "ipp-1428",
@@ -87,7 +93,9 @@
       "ippId": 1428,
       "ippSlug": "johnsoncab-electricals-ltd",
       "ippUrl": "https://www.ipopremium.in/view/ipo/1428/johnsoncab-electricals-ltd",
-      "syncedAt": "2026-11-05T08:42:59.355Z"
+      "syncedAt": "2026-11-05T08:44:58.607Z",
+      "statusCode": "C",
+      "igUrl": "https://www.investorgain.com/gmp/johnsoncab-electricals-ipo/2371/"
     },
     {
       "id": "ipp-1431",
@@ -106,7 +114,9 @@
       "ippId": 1431,
       "ippSlug": "vectras-enprocon",
       "ippUrl": "https://www.ipopremium.in/view/ipo/1431/vectras-enprocon",
-      "syncedAt": "2026-11-05T08:43:05.155Z"
+      "syncedAt": "2026-11-05T08:44:58.607Z",
+      "statusCode": "C",
+      "igUrl": "https://www.investorgain.com/gmp/vectras-enprocon-ipo/1998/"
     },
     {
       "id": "nse-BCSSL",
@@ -119,14 +129,15 @@
       "priceLow": 78,
       "priceHigh": 82,
       "lotSize": 182,
-      "syncedAt": "2026-11-05T08:42:51.602Z",
+      "syncedAt": "2026-11-05T08:44:58.607Z",
       "registrar": "KFin Technologies Limited",
       "exchange": "Mainboard",
       "allotmentDate": "2026-11-03",
       "listingDate": "2026-11-05",
       "ippId": 1424,
       "ippSlug": "bombay-coated-special-steels-ltd",
-      "ippUrl": "https://www.ipopremium.in/view/ipo/1424/bombay-coated-special-steels-ltd"
+      "ippUrl": "https://www.ipopremium.in/view/ipo/1424/bombay-coated-special-steels-ltd",
+      "igUrl": "https://www.investorgain.com/gmp/bombay-coated-and-special-steels-ipo/1936/"
     },
     {
       "id": "ipp-1427",
@@ -145,7 +156,9 @@
       "ippId": 1427,
       "ippSlug": "antala-industries-ltd",
       "ippUrl": "https://www.ipopremium.in/view/ipo/1427/antala-industries-ltd",
-      "syncedAt": "2026-11-05T08:42:57.457Z"
+      "syncedAt": "2026-11-05T08:44:58.607Z",
+      "statusCode": "CT",
+      "igUrl": "https://www.investorgain.com/gmp/antala-industries-ipo/2375/"
     },
     {
       "id": "ipp-1422",
@@ -164,7 +177,8 @@
       "ippId": 1422,
       "ippSlug": "mksons-fine-jewels-ltd",
       "ippUrl": "https://www.ipopremium.in/view/ipo/1422/mksons-fine-jewels-ltd",
-      "syncedAt": "2026-11-05T08:42:47.736Z"
+      "syncedAt": "2026-11-05T08:44:58.607Z",
+      "igUrl": "https://www.investorgain.com/gmp/mksons-fine-jewels-ipo/2288/"
     },
     {
       "id": "ipp-1425",
@@ -183,7 +197,8 @@
       "ippId": 1425,
       "ippSlug": "carver-roboweld-ltd",
       "ippUrl": "https://www.ipopremium.in/view/ipo/1425/carver-roboweld-ltd",
-      "syncedAt": "2026-11-05T08:42:53.624Z"
+      "syncedAt": "2026-11-05T08:44:58.607Z",
+      "igUrl": "https://www.investorgain.com/gmp/carver-roboweld-ipo/2393/"
     },
     {
       "id": "ipp-1426",
@@ -202,7 +217,8 @@
       "ippId": 1426,
       "ippSlug": "ajwa-projects-ltd",
       "ippUrl": "https://www.ipopremium.in/view/ipo/1426/ajwa-projects-ltd",
-      "syncedAt": "2026-11-05T08:42:55.558Z"
+      "syncedAt": "2026-11-05T08:44:58.607Z",
+      "igUrl": "https://www.investorgain.com/gmp/ajwa-projects-ipo/2017/"
     },
     {
       "id": "ipp-1423",
@@ -221,7 +237,98 @@
       "ippId": 1423,
       "ippSlug": "wiscon-industries-ltd",
       "ippUrl": "https://www.ipopremium.in/view/ipo/1423/wiscon-industries-ltd",
-      "syncedAt": "2026-11-05T08:42:49.707Z"
+      "syncedAt": "2026-11-05T08:44:58.607Z",
+      "igUrl": "https://www.investorgain.com/gmp/wiscon-industries-ipo/2356/"
+    },
+    {
+      "id": "ig-sfc-environmental-technologies",
+      "source": "investorgain",
+      "name": "SFC Environmental Technologies",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "priceHigh": 330,
+      "lotSize": 45,
+      "openDate": "2026-10-27",
+      "closeDate": "2026-10-29",
+      "allotmentDate": "2026-10-30",
+      "listingDate": "2026-11-03",
+      "igUrl": "https://www.investorgain.com/gmp/sfc-environmental-technologies-ipo/1642/",
+      "syncedAt": "2026-11-05T08:44:58.607Z"
+    },
+    {
+      "id": "ig-bls-polymers",
+      "source": "investorgain",
+      "name": "BLS Polymers",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "priceHigh": 150,
+      "lotSize": 100,
+      "openDate": "2026-10-27",
+      "closeDate": "2026-10-29",
+      "allotmentDate": "2026-10-30",
+      "listingDate": "2026-11-03",
+      "igUrl": "https://www.investorgain.com/gmp/bls-polymers-ipo/1849/",
+      "syncedAt": "2026-11-05T08:44:58.607Z"
+    },
+    {
+      "id": "ig-eaaa-alternatives",
+      "source": "investorgain",
+      "name": "EAAA India Alternatives",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "priceHigh": 1665,
+      "lotSize": 9,
+      "openDate": "2026-10-26",
+      "closeDate": "2026-10-28",
+      "allotmentDate": "2026-10-29",
+      "listingDate": "2026-11-02",
+      "igUrl": "https://www.investorgain.com/gmp/eaaa-india-alternatives-ipo/1635/",
+      "syncedAt": "2026-11-05T08:44:58.607Z"
+    },
+    {
+      "id": "ig-core4-engineers",
+      "source": "investorgain",
+      "name": "Core4 Engineers",
+      "exchange": "BSE SME",
+      "type": "SME",
+      "priceHigh": 93,
+      "lotSize": 1200,
+      "openDate": "2026-10-23",
+      "closeDate": "2026-10-27",
+      "allotmentDate": "2026-10-28",
+      "listingDate": "2026-10-30",
+      "igUrl": "https://www.investorgain.com/gmp/core4-engineers-ipo/2229/",
+      "syncedAt": "2026-11-05T08:44:58.607Z"
+    },
+    {
+      "id": "ig-paras-healthcare",
+      "source": "investorgain",
+      "name": "Paras Healthcare",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "priceHigh": 693,
+      "lotSize": 21,
+      "openDate": "2026-10-21",
+      "closeDate": "2026-10-23",
+      "allotmentDate": "2026-10-26",
+      "listingDate": "2026-10-28",
+      "igUrl": "https://www.investorgain.com/gmp/paras-healthcare-ipo/1728/",
+      "syncedAt": "2026-11-05T08:44:58.607Z"
+    },
+    {
+      "id": "ig-jio-platforms",
+      "source": "investorgain",
+      "name": "Jio Platforms",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "priceHigh": 1119,
+      "lotSize": 12,
+      "openDate": "2026-10-21",
+      "closeDate": "2026-10-23",
+      "allotmentDate": "2026-10-26",
+      "listingDate": "2026-10-28",
+      "igUrl": "https://www.investorgain.com/gmp/jio-platforms-ipo/2306/",
+      "syncedAt": "2026-11-05T08:44:58.607Z"
     },
     {
       "id": "ipp-1421",
@@ -240,7 +347,113 @@
       "ippId": 1421,
       "ippSlug": "shellz-india-ltd",
       "ippUrl": "https://www.ipopremium.in/view/ipo/1421/shellz-india-ltd",
-      "syncedAt": "2026-11-05T08:42:45.827Z"
+      "syncedAt": "2026-11-05T08:44:58.607Z",
+      "igUrl": "https://www.investorgain.com/gmp/shellz-india-ipo/2228/"
+    },
+    {
+      "id": "ig-zetwerk",
+      "source": "investorgain",
+      "name": "Zetwerk",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "priceHigh": 151,
+      "lotSize": 99,
+      "openDate": "2026-10-15",
+      "closeDate": "2026-10-19",
+      "allotmentDate": "2026-10-21",
+      "listingDate": "2026-10-23",
+      "igUrl": "https://www.investorgain.com/gmp/zetwerk-ipo/2279/",
+      "syncedAt": "2026-11-05T08:44:58.607Z"
+    },
+    {
+      "id": "ig-tonbo-imaging",
+      "source": "investorgain",
+      "name": "Tonbo Imaging India",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "priceHigh": 700,
+      "lotSize": 21,
+      "openDate": "2026-10-15",
+      "closeDate": "2026-10-19",
+      "allotmentDate": "2026-10-21",
+      "listingDate": "2026-10-23",
+      "igUrl": "https://www.investorgain.com/gmp/tonbo-imaging-india-ipo/2369/",
+      "syncedAt": "2026-11-05T08:44:58.607Z"
+    },
+    {
+      "id": "ig-sahajanand-medical-technologies",
+      "source": "investorgain",
+      "name": "Sahajanand Medical Technologies",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "priceHigh": 344,
+      "lotSize": 43,
+      "openDate": "2026-10-15",
+      "closeDate": "2026-10-19",
+      "allotmentDate": "2026-10-21",
+      "listingDate": "2026-10-23",
+      "igUrl": "https://www.investorgain.com/gmp/sahajanand-medical-technologies-ipo/1842/",
+      "syncedAt": "2026-11-05T08:44:58.607Z"
+    },
+    {
+      "id": "ig-bonfiglioli-transmissions",
+      "source": "investorgain",
+      "name": "Bonfiglioli Transmissions",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "priceHigh": 586,
+      "lotSize": 25,
+      "openDate": "2026-10-15",
+      "closeDate": "2026-10-19",
+      "allotmentDate": "2026-10-21",
+      "listingDate": "2026-10-23",
+      "igUrl": "https://www.investorgain.com/gmp/bonfiglioli-transmissions-ipo/2124/",
+      "syncedAt": "2026-11-05T08:44:58.607Z"
+    },
+    {
+      "id": "ig-ravita-engineering-services",
+      "source": "investorgain",
+      "name": "Ravita Engineering Services",
+      "exchange": "NSE SME",
+      "type": "SME",
+      "priceHigh": 112,
+      "lotSize": 1200,
+      "openDate": "2026-10-14",
+      "closeDate": "2026-10-16",
+      "allotmentDate": "2026-10-19",
+      "listingDate": "2026-10-22",
+      "igUrl": "https://www.investorgain.com/gmp/ravita-engineering-services-ipo/2220/",
+      "syncedAt": "2026-11-05T08:44:58.607Z"
+    },
+    {
+      "id": "ig-fusion-cx",
+      "source": "investorgain",
+      "name": "Fusion CX",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "priceHigh": 289,
+      "lotSize": 51,
+      "openDate": "2026-10-14",
+      "closeDate": "2026-10-16",
+      "allotmentDate": "2026-10-19",
+      "listingDate": "2026-10-22",
+      "igUrl": "https://www.investorgain.com/gmp/fusion-cx-ipo/1792/",
+      "syncedAt": "2026-11-05T08:44:58.607Z"
+    },
+    {
+      "id": "ig-hd-fire-protect",
+      "source": "investorgain",
+      "name": "HD Fire Protect",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "priceHigh": 271,
+      "lotSize": 55,
+      "openDate": "2026-10-13",
+      "closeDate": "2026-10-15",
+      "allotmentDate": "2026-10-16",
+      "listingDate": "2026-10-21",
+      "igUrl": "https://www.investorgain.com/gmp/hd-fire-protect-ipo/1902/",
+      "syncedAt": "2026-11-05T08:44:58.607Z"
     }
   ]
 }
