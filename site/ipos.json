@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-16T07:54:25.995Z",
+  "updatedAt": "2026-11-16T18:24:57.251Z",
   "sources": [
     "NSE",
     "ipopremium.in",
@@ -11,9 +11,9 @@
   "meta": {},
   "ipos": [
     {
-      "id": "ig-watrana-rentals",
-      "source": "investorgain",
-      "name": "Watrana Rentals",
+      "id": "nse-WATRANA",
+      "source": "NSE",
+      "name": "Watrana Rentals Limited",
       "exchange": "NSE SME",
       "type": "SME",
       "statusCode": "U",
@@ -24,7 +24,10 @@
       "allotmentDate": "2026-11-25",
       "listingDate": "2026-11-27",
       "igUrl": "https://www.investorgain.com/gmp/watrana-rentals-ipo/1818/",
-      "syncedAt": "2026-11-13T07:51:54.684Z"
+      "syncedAt": "2026-11-16T18:24:56.657Z",
+      "symbol": "WATRANA",
+      "priceLow": 232,
+      "registrar": "Maashitla Securities Private Limited"
     },
     {
       "id": "ig-mahanadi-coalfields",
