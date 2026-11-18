@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-16T18:24:57.251Z",
+  "updatedAt": "2026-11-18T10:40:04.741Z",
   "sources": [
     "NSE",
     "ipopremium.in",
@@ -51,9 +51,9 @@
       "name": "Crystal Crop Protection",
       "exchange": "Mainboard",
       "type": "Mainboard",
-      "statusCode": "U",
+      "statusCode": "O",
       "igUrl": "https://www.investorgain.com/gmp/crystal-crop-protection-ipo/2067/",
-      "syncedAt": "2026-11-13T07:51:54.684Z",
+      "syncedAt": "2026-11-18T10:40:04.734Z",
       "priceHigh": 272,
       "lotSize": 55,
       "openDate": "2026-11-18",
