@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-19T09:28:08.963Z",
+  "updatedAt": "2026-11-19T18:38:36.887Z",
   "sources": [
     "NSE",
     "ipopremium.in",
@@ -10,6 +10,20 @@
   ],
   "meta": {},
   "ipos": [
+    {
+      "id": "ig-foodlink-f-b-holdings",
+      "source": "investorgain",
+      "name": "Foodlink F&B Holdings",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "statusCode": "U",
+      "openDate": "2026-11-26",
+      "closeDate": "2026-11-30",
+      "allotmentDate": "2026-12-01",
+      "listingDate": "2026-12-03",
+      "igUrl": "https://www.investorgain.com/gmp/foodlink-fb-ipo/1810/",
+      "syncedAt": "2026-11-19T18:38:36.879Z"
+    },
     {
       "id": "ig-shree-siddhivinayak-greentech-industries",
       "source": "investorgain",
