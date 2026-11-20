@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-20T09:08:07.996Z",
+  "updatedAt": "2026-11-20T17:59:30.451Z",
   "sources": [
     "NSE",
     "ipopremium.in",
@@ -10,6 +10,20 @@
   ],
   "meta": {},
   "ipos": [
+    {
+      "id": "ig-integris-medtech",
+      "source": "investorgain",
+      "name": "Integris Medtech",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "statusCode": "U",
+      "openDate": "2026-11-27",
+      "closeDate": "2026-12-01",
+      "allotmentDate": "2026-12-02",
+      "listingDate": "2026-12-04",
+      "igUrl": "https://www.investorgain.com/gmp/integris-medtech-ipo/2029/",
+      "syncedAt": "2026-11-20T17:59:30.443Z"
+    },
     {
       "id": "ig-foodlink-f-b-holdings",
       "source": "investorgain",
@@ -63,10 +77,10 @@
       "registrar": "Maashitla Securities Private Limited"
     },
     {
-      "id": "ig-mahanadi-coalfields",
-      "source": "investorgain",
-      "name": "Mahanadi Coalfields",
-      "exchange": "Mainboard",
+      "id": "nse-MAHACOAL",
+      "source": "NSE",
+      "name": "Mahanadi Coalfields Limited",
+      "exchange": "NSE, BSE",
       "type": "Mainboard",
       "statusCode": "O",
       "openDate": "2026-11-19",
@@ -74,25 +88,31 @@
       "allotmentDate": "2026-11-25",
       "listingDate": "2026-11-27",
       "igUrl": "https://www.investorgain.com/gmp/mahanadi-coalfields-ipo/2401/",
-      "syncedAt": "2026-11-19T09:28:08.955Z",
+      "syncedAt": "2026-11-20T17:59:29.800Z",
       "priceHigh": 136,
-      "lotSize": 110
+      "lotSize": 110,
+      "symbol": "MAHACOAL",
+      "priceLow": 129,
+      "registrar": "KFin Technologies Limited"
     },
     {
-      "id": "ig-crystal-crop-protection",
-      "source": "investorgain",
-      "name": "Crystal Crop Protection",
-      "exchange": "Mainboard",
+      "id": "nse-CRYSTALCP",
+      "source": "NSE",
+      "name": "Crystal Crop Protection Limited",
+      "exchange": "NSE, BSE",
       "type": "Mainboard",
       "statusCode": "CT",
       "igUrl": "https://www.investorgain.com/gmp/crystal-crop-protection-ipo/2067/",
-      "syncedAt": "2026-11-20T09:08:07.990Z",
+      "syncedAt": "2026-11-20T17:59:29.799Z",
       "priceHigh": 272,
       "lotSize": 55,
       "openDate": "2026-11-18",
       "closeDate": "2026-11-20",
       "allotmentDate": "2026-11-23",
-      "listingDate": "2026-11-26"
+      "listingDate": "2026-11-26",
+      "symbol": "CRYSTALCP",
+      "priceLow": 259,
+      "registrar": "MUFG Intime India Private Limited"
     },
     {
       "id": "nse-VPFL",
@@ -538,6 +558,16 @@
       "listingDate": "2026-10-21",
       "igUrl": "https://www.investorgain.com/gmp/hd-fire-protect-ipo/1902/",
       "syncedAt": "2026-11-05T08:44:58.607Z"
+    },
+    {
+      "id": "ig-monomark-engineering",
+      "source": "investorgain",
+      "name": "Monomark Engineering",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "statusCode": "U",
+      "igUrl": "https://www.investorgain.com/gmp/monomark-engineering-ipo/2232/",
+      "syncedAt": "2026-11-20T17:59:30.443Z"
     }
   ]
 }
