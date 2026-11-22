@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-20T17:59:30.451Z",
+  "updatedAt": "2026-11-22T17:05:01.232Z",
   "sources": [
     "NSE",
     "ipopremium.in",
@@ -10,6 +10,20 @@
   ],
   "meta": {},
   "ipos": [
+    {
+      "id": "ig-monomark-engineering",
+      "source": "investorgain",
+      "name": "Monomark Engineering",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "statusCode": "U",
+      "igUrl": "https://www.investorgain.com/gmp/monomark-engineering-ipo/2232/",
+      "syncedAt": "2026-11-22T17:05:01.226Z",
+      "openDate": "2026-12-02",
+      "closeDate": "2026-12-04",
+      "allotmentDate": "2026-12-07",
+      "listingDate": "2026-12-09"
+    },
     {
       "id": "ig-integris-medtech",
       "source": "investorgain",
@@ -558,16 +572,6 @@
       "listingDate": "2026-10-21",
       "igUrl": "https://www.investorgain.com/gmp/hd-fire-protect-ipo/1902/",
       "syncedAt": "2026-11-05T08:44:58.607Z"
-    },
-    {
-      "id": "ig-monomark-engineering",
-      "source": "investorgain",
-      "name": "Monomark Engineering",
-      "exchange": "Mainboard",
-      "type": "Mainboard",
-      "statusCode": "U",
-      "igUrl": "https://www.investorgain.com/gmp/monomark-engineering-ipo/2232/",
-      "syncedAt": "2026-11-20T17:59:30.443Z"
     }
   ]
 }
