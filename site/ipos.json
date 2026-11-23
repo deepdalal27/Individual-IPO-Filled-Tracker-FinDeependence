@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-22T17:05:01.232Z",
+  "updatedAt": "2026-11-23T12:22:35.044Z",
   "sources": [
     "NSE",
     "ipopremium.in",
@@ -23,6 +23,38 @@
       "closeDate": "2026-12-04",
       "allotmentDate": "2026-12-07",
       "listingDate": "2026-12-09"
+    },
+    {
+      "id": "ig-a-j-packaging",
+      "source": "investorgain",
+      "name": "A J Packaging",
+      "exchange": "NSE SME",
+      "type": "SME",
+      "statusCode": "U",
+      "priceHigh": 180,
+      "lotSize": 800,
+      "openDate": "2026-12-01",
+      "closeDate": "2026-12-03",
+      "allotmentDate": "2026-12-04",
+      "listingDate": "2026-12-08",
+      "igUrl": "https://www.investorgain.com/gmp/a-j-packaging-ipo/2247/",
+      "syncedAt": "2026-11-23T12:22:35.036Z"
+    },
+    {
+      "id": "ig-matangi-rubber",
+      "source": "investorgain",
+      "name": "Matangi Rubber",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "statusCode": "U",
+      "priceHigh": 172,
+      "lotSize": 87,
+      "openDate": "2026-12-01",
+      "closeDate": "2026-12-03",
+      "allotmentDate": "2026-12-04",
+      "listingDate": "2026-12-08",
+      "igUrl": "https://www.investorgain.com/gmp/matangi-rubber-ipo/2290/",
+      "syncedAt": "2026-11-23T12:22:35.036Z"
     },
     {
       "id": "ig-integris-medtech",
@@ -50,7 +82,9 @@
       "allotmentDate": "2026-12-01",
       "listingDate": "2026-12-03",
       "igUrl": "https://www.investorgain.com/gmp/foodlink-fb-ipo/1810/",
-      "syncedAt": "2026-11-19T18:38:36.879Z"
+      "syncedAt": "2026-11-23T12:22:35.036Z",
+      "priceHigh": 191,
+      "lotSize": 78
     },
     {
       "id": "nse-SHREESIDHI",
