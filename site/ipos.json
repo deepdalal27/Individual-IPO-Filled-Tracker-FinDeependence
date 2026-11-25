@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-25T14:18:06.963Z",
+  "updatedAt": "2026-11-25T23:16:44.597Z",
   "sources": [
     "NSE",
     "ipopremium.in",
@@ -95,10 +95,10 @@
       "registrar": "MUFG Intime India Private Limited"
     },
     {
-      "id": "ig-foodlink-f-b-holdings",
-      "source": "investorgain",
-      "name": "Foodlink F&B Holdings",
-      "exchange": "Mainboard",
+      "id": "nse-FOODLINK",
+      "source": "NSE",
+      "name": "Foodlink F&B Holdings (India) Limited",
+      "exchange": "NSE, BSE",
       "type": "Mainboard",
       "statusCode": "U",
       "openDate": "2026-11-26",
@@ -106,9 +106,12 @@
       "allotmentDate": "2026-12-01",
       "listingDate": "2026-12-03",
       "igUrl": "https://www.investorgain.com/gmp/foodlink-fb-ipo/1810/",
-      "syncedAt": "2026-11-23T12:22:35.036Z",
+      "syncedAt": "2026-11-25T23:16:44.073Z",
       "priceHigh": 191,
-      "lotSize": 78
+      "lotSize": 78,
+      "symbol": "FOODLINK",
+      "priceLow": 181,
+      "registrar": "MUFG Intime India Private Limited"
     },
     {
       "id": "nse-SHREESIDHI",
