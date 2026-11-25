@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-24T10:22:42.049Z",
+  "updatedAt": "2026-11-25T14:18:06.963Z",
   "sources": [
     "NSE",
     "ipopremium.in",
@@ -18,16 +18,18 @@
       "type": "Mainboard",
       "statusCode": "U",
       "igUrl": "https://www.investorgain.com/gmp/monomark-engineering-ipo/2232/",
-      "syncedAt": "2026-11-22T17:05:01.226Z",
+      "syncedAt": "2026-11-25T14:18:06.959Z",
       "openDate": "2026-12-02",
       "closeDate": "2026-12-04",
       "allotmentDate": "2026-12-07",
-      "listingDate": "2026-12-09"
+      "listingDate": "2026-12-09",
+      "priceHigh": 65,
+      "lotSize": 225
     },
     {
-      "id": "ig-a-j-packaging",
-      "source": "investorgain",
-      "name": "A J Packaging",
+      "id": "nse-AJPACK",
+      "source": "NSE",
+      "name": "A J Packaging Limited",
       "exchange": "NSE SME",
       "type": "SME",
       "statusCode": "U",
@@ -38,7 +40,10 @@
       "allotmentDate": "2026-12-04",
       "listingDate": "2026-12-08",
       "igUrl": "https://www.investorgain.com/gmp/a-j-packaging-ipo/2247/",
-      "syncedAt": "2026-11-23T12:22:35.036Z"
+      "syncedAt": "2026-11-25T14:18:06.284Z",
+      "symbol": "AJPACK",
+      "priceLow": 175,
+      "registrar": "Mufg Intime India Private Limited"
     },
     {
       "id": "ig-matangi-rubber",
@@ -71,9 +76,9 @@
       "syncedAt": "2026-11-20T17:59:30.443Z"
     },
     {
-      "id": "ig-airpro-technology",
-      "source": "investorgain",
-      "name": "Airpro Technology",
+      "id": "nse-AIRPRO",
+      "source": "NSE",
+      "name": "Airpro Technology India Limited",
       "exchange": "NSE SME",
       "type": "SME",
       "statusCode": "U",
@@ -84,7 +89,10 @@
       "allotmentDate": "2026-12-02",
       "listingDate": "2026-12-04",
       "igUrl": "https://www.investorgain.com/gmp/airpro-technology-ipo/2316/",
-      "syncedAt": "2026-11-24T10:22:42.043Z"
+      "syncedAt": "2026-11-25T14:18:06.284Z",
+      "symbol": "AIRPRO",
+      "priceLow": 99,
+      "registrar": "MUFG Intime India Private Limited"
     },
     {
       "id": "ig-foodlink-f-b-holdings",
