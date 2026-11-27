@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-27T00:32:21.905Z",
+  "updatedAt": "2026-11-27T09:01:48.596Z",
   "sources": [
     "NSE",
     "ipopremium.in",
@@ -10,6 +10,22 @@
   ],
   "meta": {},
   "ipos": [
+    {
+      "id": "ig-vishwas-refoils-consumer",
+      "source": "investorgain",
+      "name": "Vishwas Refoils & Consumer",
+      "exchange": "BSE SME",
+      "type": "SME",
+      "statusCode": "U",
+      "priceHigh": 90,
+      "lotSize": 1600,
+      "openDate": "2026-12-03",
+      "closeDate": "2026-12-07",
+      "allotmentDate": "2026-12-08",
+      "listingDate": "2026-12-10",
+      "igUrl": "https://www.investorgain.com/gmp/vishwas-refoils-consumer-ipo/2384/",
+      "syncedAt": "2026-11-27T09:01:48.588Z"
+    },
     {
       "id": "ig-monomark-engineering",
       "source": "investorgain",
@@ -25,6 +41,22 @@
       "listingDate": "2026-12-09",
       "priceHigh": 65,
       "lotSize": 225
+    },
+    {
+      "id": "ig-swara-baby-products",
+      "source": "investorgain",
+      "name": "Swara Baby Products",
+      "exchange": "Mainboard",
+      "type": "Mainboard",
+      "statusCode": "U",
+      "igUrl": "https://www.investorgain.com/gmp/swara-baby-products-ipo/2340/",
+      "syncedAt": "2026-11-27T09:01:48.588Z",
+      "priceHigh": 111,
+      "lotSize": 135,
+      "openDate": "2026-12-02",
+      "closeDate": "2026-12-04",
+      "allotmentDate": "2026-12-07",
+      "listingDate": "2026-12-09"
     },
     {
       "id": "nse-AJPACK",
@@ -633,16 +665,6 @@
       "listingDate": "2026-10-21",
       "igUrl": "https://www.investorgain.com/gmp/hd-fire-protect-ipo/1902/",
       "syncedAt": "2026-11-05T08:44:58.607Z"
-    },
-    {
-      "id": "ig-swara-baby-products",
-      "source": "investorgain",
-      "name": "Swara Baby Products",
-      "exchange": "Mainboard",
-      "type": "Mainboard",
-      "statusCode": "U",
-      "igUrl": "https://www.investorgain.com/gmp/swara-baby-products-ipo/2340/",
-      "syncedAt": "2026-11-27T00:32:21.899Z"
     }
   ]
 }
